@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://barangay-chatbot-production.up.railway.app/api';
 
 let token = localStorage.getItem('token');
 
