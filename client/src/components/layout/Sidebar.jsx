@@ -1,0 +1,57 @@
+import { NavLink, useNavigate } from 'react-router-dom';
+import { clearToken } from '../../lib/api';
+import { Button } from '../ui/button';
+import { LayoutDashboard, FileText, Users, Megaphone, LogOut } from 'lucide-react';
+
+const links = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/reports', label: 'Reports', icon: FileText },
+  { to: '/residents', label: 'Residents', icon: Users },
+  { to: '/announcements', label: 'Announcements', icon: Megaphone },
+];
+
+export default function Sidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearToken();
+    navigate('/login');
+  };
+
+  return (
+    <div className="w-64 bg-gray-900 text-white flex flex-col min-h-screen">
+      <div className="p-6 border-b border-gray-700">
+        <h1 className="text-lg font-bold">Barangay Admin</h1>
+        <p className="text-gray-400 text-sm">Management Dashboard</p>
+      </div>
+      <nav className="flex-1 p-4 space-y-1">
+        {links.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm font-medium ${
+                isActive
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+              }`
+            }
+          >
+            <link.icon className="w-4 h-4" />
+            {link.label}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="p-4 border-t border-gray-700">
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          className="w-full text-gray-300 hover:text-white hover:bg-gray-800 justify-start gap-3"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+}
