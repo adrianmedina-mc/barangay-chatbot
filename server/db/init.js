@@ -1,8 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = process.env.RENDER 
-  ? '/opt/render/project/src/server/db/barangay.db' 
+const dbPath = process.env.RAILWAY_VOLUME_PATH 
+  ? path.join(process.env.RAILWAY_VOLUME_PATH, 'barangay.db')
   : path.join(__dirname, 'barangay.db');
 const db = new Database(dbPath);
 
