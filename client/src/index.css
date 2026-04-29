@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Dark mode overrides — applied globally when .dark is on <html> */
 .dark body {
   background-color: #111827;
 }
@@ -29,7 +28,7 @@
   color: #d1d5db;
 }
 
-.dark h1, .dark h2, .dark h3 {
+.dark h1, .dark h2, .dark h3, .dark .font-semibold, .dark .font-bold {
   color: #f9fafb;
 }
 
@@ -41,6 +40,10 @@
   background-color: #374151;
   color: #f9fafb;
   border-color: #4b5563;
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: #9ca3af;
 }
 
 .dark input:focus, .dark textarea:focus, .dark select:focus {

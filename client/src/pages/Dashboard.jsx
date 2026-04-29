@@ -56,11 +56,11 @@ export default function Dashboard() {
             <Card key={card.label} className="p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm font-medium">{card.label}</p>
+                  <p className="text-gray-500 text-sm font-medium dark:text-gray-400">{card.label}</p>
                   {loading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400 mt-2" />
                   ) : (
-                    <p className="text-3xl font-bold mt-2">{card.value}</p>
+                    <p className="text-3xl font-bold mt-2 dark:text-white">{card.value}</p>
                   )}
                 </div>
                 <div className={`p-3 rounded-full ${card.color}`}>
