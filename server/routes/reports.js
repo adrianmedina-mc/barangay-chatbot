@@ -4,6 +4,19 @@ const db = require('../db/init');
 const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 
+router.get('/stats', async (req, res) => {
+  const byCategory = await db.query(
+    "SELECT category, COUNT(*) as count FROM reports GROUP BY category ORDER BY count DESC"
+  );
+  const byStatus = await db.query(
+    "SELECT status, COUNT(*) as count FROM reports GROUP BY status"
+  );
+  res.json({
+    byCategory: byCategory.rows,
+    byStatus: byStatus.rows,
+  });
+});
+
 router.get('/', async (req, res) => {
   const result = await db.query('SELECT r.*, res.first_name, res.last_name, res.address FROM reports r JOIN residents res ON r.resident_id = res.id ORDER BY r.created_at DESC');
   res.json(result.rows);
@@ -19,16 +32,5 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: 'Report deleted' });
 });
 
-router.get('/stats', async (req, res) => {
-  const byCategory = await db.query(
-    "SELECT category, COUNT(*) as count FROM reports GROUP BY category ORDER BY count DESC"
-  );
-  const byStatus = await db.query(
-    "SELECT status, COUNT(*) as count FROM reports GROUP BY status"
-  );
-  res.json({
-    byCategory: byCategory.rows,
-    byStatus: byStatus.rows,
-  });
-});
+
 module.exports = router;
