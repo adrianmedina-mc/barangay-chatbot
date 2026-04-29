@@ -60,7 +60,7 @@ export default function Dashboard() {
                   {loading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400 mt-2" />
                   ) : (
-                    <p className="text-3xl font-bold mt-2 dark:text-white">{card.value}</p>
+                    <p className="text-3xl font-bold mt-2 text-black dark:text-white">{card.value}</p>
                   )}
                 </div>
                 <div className={`p-3 rounded-full ${card.color}`}>

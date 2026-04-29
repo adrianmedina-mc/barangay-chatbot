@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* Dark mode overrides */
 .dark body {
   background-color: #111827;
 }
@@ -13,23 +14,23 @@
 }
 
 .dark .text-gray-700 {
-  color: #d1d5db;
-}
-
-.dark .text-gray-500 {
-  color: #9ca3af;
-}
-
-.dark .text-gray-400 {
-  color: #9ca3af;
+  color: #b0b8c1;
 }
 
 .dark .text-gray-600 {
-  color: #d1d5db;
+  color: #9ca3af;
+}
+
+.dark .text-gray-500 {
+  color: #8b95a0;
+}
+
+.dark .text-gray-400 {
+  color: #7c8690;
 }
 
 .dark h1, .dark h2, .dark h3, .dark .font-semibold, .dark .font-bold {
-  color: #f9fafb;
+  color: #e5e7eb;
 }
 
 .dark .border {
@@ -38,12 +39,12 @@
 
 .dark input, .dark textarea, .dark select {
   background-color: #374151;
-  color: #f9fafb;
+  color: #e5e7eb;
   border-color: #4b5563;
 }
 
 .dark input::placeholder, .dark textarea::placeholder {
-  color: #9ca3af;
+  color: #8b95a0;
 }
 
 .dark input:focus, .dark textarea:focus, .dark select:focus {
@@ -52,4 +53,13 @@
 
 .dark .hover\:shadow-md:hover {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+/* Fix report description text */
+.dark p {
+  color: #b0b8c1;
+}
+
+.dark .font-medium {
+  color: #d1d5db;
 }
