@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { clearToken } from '../../lib/api';
 import { Button } from '../ui/button';
-import { LayoutDashboard, FileText, Users, Megaphone, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Megaphone, LogOut, Moon, Sun } from 'lucide-react';
+import { useDarkMode } from '../../hooks/useDarkMode';
 
 const links = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,6 +13,7 @@ const links = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
+  const [dark, setDark] = useDarkMode();
 
   const handleLogout = () => {
     clearToken();
@@ -42,7 +44,15 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-gray-700 space-y-2">
+        <Button
+          onClick={() => setDark(!dark)}
+          variant="ghost"
+          className="w-full text-gray-300 hover:text-white hover:bg-gray-800 justify-start gap-3"
+        >
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {dark ? 'Light Mode' : 'Dark Mode'}
+        </Button>
         <Button
           onClick={handleLogout}
           variant="ghost"
