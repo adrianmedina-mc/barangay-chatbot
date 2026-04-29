@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const db = require('./db/init');
+const { startScheduler } = require('./services/scheduler');
 
 const webhookRoutes = require('./routes/webhook');
 const authRoutes = require('./routes/auth');
@@ -26,6 +27,8 @@ app.use('/api/announcements', announcementRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+startScheduler();
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
