@@ -1,9 +1,16 @@
 const { Pool } = require('pg');
 
+// Parse DATABASE_URL manually to force IPv4
+const url = new URL(process.env.DATABASE_URL);
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: url.hostname,
+  port: url.port || 5432,
+  database: url.pathname.slice(1),
+  user: url.username,
+  password: url.password,
   ssl: { rejectUnauthorized: false },
-  family: 4,
+  family: 4, // Force IPv4
 });
 
 async function initDB() {
