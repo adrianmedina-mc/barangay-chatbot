@@ -28,6 +28,15 @@ async function initDB() {
         temp_data TEXT DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS admins (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        name TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
         resident_id INTEGER NOT NULL REFERENCES residents(id),
@@ -36,6 +45,7 @@ async function initDB() {
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,
         admin_id INTEGER NOT NULL REFERENCES admins(id),
@@ -45,13 +55,6 @@ async function initDB() {
         recipient_count INTEGER DEFAULT 0,
         status TEXT DEFAULT 'sent',
         scheduled_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-      CREATE TABLE IF NOT EXISTS admins (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        name TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
