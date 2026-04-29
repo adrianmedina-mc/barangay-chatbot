@@ -14,4 +14,8 @@ router.patch('/:id', async (req, res) => {
   res.json({ message: 'Updated' });
 });
 
+router.delete('/:id', async (req, res) => {
+  await db.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Report deleted' });
+});
 module.exports = router;

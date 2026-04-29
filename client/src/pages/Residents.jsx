@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
-import { Loader2, Users, Search, MapPin, Calendar, FileText, X } from 'lucide-react';
+import { Loader2, Users, Search, MapPin, Calendar, FileText, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '../components/ui/button'; 
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
@@ -24,6 +26,17 @@ export default function Residents() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Delete ${name} and all their reports permanently?`)) return;
+    try {
+      await api.deleteResident(id);
+      setResidents((prev) => prev.filter((r) => r.id !== id));
+      toast.success('Resident deleted');
+    } catch (err) {
+      toast.error('Failed to delete resident');
+    }
+  };
 
   const openProfile = async (id) => {
     setProfileLoading(true);
@@ -99,9 +112,22 @@ export default function Residents() {
                     <p className="text-gray-500 text-sm">Age: {r.age} • {r.address}</p>
                   </div>
                 </div>
-                <p className="text-gray-400 text-sm">
-                  {new Date(r.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-gray-400 text-sm">
+                    {new Date(r.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={(e) => { 
+                      e.stopPropagation();
+                      handleDelete(r.id, `${r.first_name} ${r.last_name}`); 
+                    }} 
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

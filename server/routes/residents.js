@@ -29,4 +29,11 @@ router.get('/:id', async (req, res) => {
     total_reports: reports.rows.length,
   });
 });
+
+router.delete('/:id', async (req, res) => {
+  // Delete resident's reports first, then the resident
+  await db.query('DELETE FROM reports WHERE resident_id = $1', [req.params.id]);
+  await db.query('DELETE FROM residents WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Resident and associated reports deleted' });
+});
 module.exports = router;

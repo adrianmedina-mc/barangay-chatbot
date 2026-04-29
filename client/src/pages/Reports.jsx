@@ -3,8 +3,9 @@ import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2} from 'lucide-react';
 import { toast } from 'sonner';
+
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -43,7 +44,16 @@ export default function Reports() {
   };
 
   const filtered = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
-
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this report permanently?')) return;
+    try {
+      await api.deleteReport(id);
+      setReports((prev) => prev.filter((r) => r.id !== id));
+      toast.success('Report deleted');
+    } catch (err) {
+      toast.error('Failed to delete report');
+    }
+  };
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -60,6 +70,7 @@ export default function Reports() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
+          
         </div>
         <p className="text-gray-500 mb-8">{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
 
@@ -110,6 +121,9 @@ export default function Reports() {
                           Reopen
                         </Button>
                       )}
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(report.id)} className="text-red-500 hover:text-red-700">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </Card>

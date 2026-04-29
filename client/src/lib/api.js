@@ -49,6 +49,8 @@ export const api = {
 
   getResidents: () => request('/residents'),
   getResident: (id) => request(`/residents/${id}`),
+  deleteReport: (id) => request(`/reports/${id}`, { method: 'DELETE' }),
+  deleteResident: (id) => request(`/residents/${id}`, { method: 'DELETE' }),
 
   getAnnouncements: () => request('/announcements'),
   sendAnnouncement: (data) =>
