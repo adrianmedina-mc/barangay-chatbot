@@ -6,10 +6,10 @@ router.use(authMiddleware);
 
 router.get('/stats', async (req, res) => {
   const byCategory = await db.query(
-    "SELECT category, COUNT(*) as count FROM reports GROUP BY category ORDER BY count DESC"
+    "SELECT category, COUNT(*)::int as count FROM reports GROUP BY category ORDER BY count DESC"
   );
   const byStatus = await db.query(
-    "SELECT status, COUNT(*) as count FROM reports GROUP BY status"
+    "SELECT status, COUNT(*)::int as count FROM reports GROUP BY status"
   );
   res.json({
     byCategory: byCategory.rows,
