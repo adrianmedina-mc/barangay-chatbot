@@ -1,14 +1,11 @@
 const { Pool } = require('pg');
 
-const { Pool } = require('pg');
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  family: 4, // Force IPv4
+  family: 4,
 });
 
-// Initialize tables
 async function initDB() {
   const client = await pool.connect();
   try {
@@ -24,7 +21,6 @@ async function initDB() {
         temp_data TEXT DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-
       CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
         resident_id INTEGER NOT NULL REFERENCES residents(id),
@@ -33,7 +29,6 @@ async function initDB() {
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,
         admin_id INTEGER NOT NULL REFERENCES admins(id),
@@ -45,7 +40,6 @@ async function initDB() {
         scheduled_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-
       CREATE TABLE IF NOT EXISTS admins (
         id SERIAL PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
