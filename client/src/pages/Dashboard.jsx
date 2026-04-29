@@ -3,24 +3,31 @@ import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
 import { FileText, Users, Megaphone, Loader2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+const STATUS_COLORS = { pending: '#f59e0b', in_progress: '#3b82f6', resolved: '#10b981' };
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ reports: 0, residents: 0, announcements: 0 });
+  const [chartData, setChartData] = useState({ byCategory: [], byStatus: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [reports, residents, announcements] = await Promise.all([
+        const [reports, residents, announcements, reportStats] = await Promise.all([
           api.getReports(),
           api.getResidents(),
           api.getAnnouncements(),
+          api.getReportStats(),
         ]);
         setStats({
           reports: reports.length,
           residents: residents.length,
           announcements: announcements.length,
         });
+        setChartData(reportStats);
       } catch (err) {
         console.error(err);
       } finally {
@@ -43,7 +50,8 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-gray-500 mb-8">Overview of barangay communication activity</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {cards.map((card) => (
             <Card key={card.label} className="p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
@@ -62,6 +70,69 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+
+        {/* Charts */}
+        {!loading && (chartData.byCategory.length > 0 || chartData.byStatus.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart - Reports by Category */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Reports by Category</h2>
+              {chartData.byCategory.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData.byCategory}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="category" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Reports" radius={[6, 6, 0, 0]}>
+                      {chartData.byCategory.map((_, index) => (
+                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-center py-12">No report data yet</p>
+              )}
+            </Card>
+
+            {/* Pie Chart - Reports by Status */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Reports by Status</h2>
+              {chartData.byStatus.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={chartData.byStatus}
+                      dataKey="count"
+                      nameKey="status"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label={({ status, count }) => `${status.replace('_', ' ')}: ${count}`}
+                    >
+                      {chartData.byStatus.map((entry) => (
+                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#6b7280'} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-center py-12">No status data yet</p>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {!loading && chartData.byCategory.length === 0 && chartData.byStatus.length === 0 && (
+          <div className="text-center py-16">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No report data to display yet</p>
+            <p className="text-gray-400 text-sm">Charts will appear once residents submit reports</p>
+          </div>
+        )}
       </main>
     </div>
   );

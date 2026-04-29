@@ -18,4 +18,17 @@ router.delete('/:id', async (req, res) => {
   await db.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
   res.json({ message: 'Report deleted' });
 });
+
+router.get('/stats', async (req, res) => {
+  const byCategory = await db.query(
+    "SELECT category, COUNT(*) as count FROM reports GROUP BY category ORDER BY count DESC"
+  );
+  const byStatus = await db.query(
+    "SELECT status, COUNT(*) as count FROM reports GROUP BY status"
+  );
+  res.json({
+    byCategory: byCategory.rows,
+    byStatus: byStatus.rows,
+  });
+});
 module.exports = router;
