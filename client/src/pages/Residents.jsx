@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Dialog } from '../components/ui/dialog';
-import { Loader2, Users, Search, Mail, MapPin, Calendar, FileText, X } from 'lucide-react';
+import { Loader2, Users, Search, MapPin, Calendar, FileText, X } from 'lucide-react';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
@@ -18,6 +16,7 @@ export default function Residents() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     api.getResidents()
@@ -28,6 +27,7 @@ export default function Residents() {
 
   const openProfile = async (id) => {
     setProfileLoading(true);
+    setModalOpen(true);
     setSelected(null);
     try {
       const data = await api.getResident(id);
@@ -37,6 +37,12 @@ export default function Residents() {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  const closeProfile = () => {
+    setModalOpen(false);
+    setSelected(null);
+    setProfileLoading(false);
   };
 
   const filtered = residents.filter((r) => {
@@ -79,7 +85,7 @@ export default function Residents() {
             {filtered.map((r) => (
               <Card
                 key={r.id}
-                className="p-5 flex justify-between items-center hover:shadow-md transition-shadow cursor-pointer hover:border-blue-300"
+                className="p-5 flex justify-between items-center hover:shadow-md transition-shadow cursor-pointer hover:border-blue-300 border-2 border-transparent"
                 onClick={() => openProfile(r.id)}
               >
                 <div className="flex items-center gap-4">
@@ -101,10 +107,13 @@ export default function Residents() {
           </div>
         )}
 
-        {/* Profile Dialog */}
-        <Dialog open={!!selected || profileLoading} onOpenChange={() => { setSelected(null); setProfileLoading(false); }}>
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4">
+        {/* Custom Modal */}
+        {modalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeProfile}>
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
               {profileLoading ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -124,7 +133,7 @@ export default function Residents() {
                         <p className="text-gray-500 text-sm">Resident #{selected.id}</p>
                       </div>
                     </div>
-                    <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <button onClick={closeProfile} className="p-2 hover:bg-gray-100 rounded-lg">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
@@ -177,7 +186,7 @@ export default function Residents() {
               ) : null}
             </div>
           </div>
-        </Dialog>
+        )}
       </main>
     </div>
   );
