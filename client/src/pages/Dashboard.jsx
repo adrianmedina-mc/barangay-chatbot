@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
+import { useDarkMode } from '../hooks/useDarkMode';
 import { FileText, Users, Megaphone, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ reports: 0, residents: 0, announcements: 0 });
   const [chartData, setChartData] = useState({ byCategory: [], byStatus: [] });
   const [loading, setLoading] = useState(true);
+  const [dark] = useDarkMode();
 
   useEffect(() => {
     async function load() {
@@ -56,11 +58,15 @@ export default function Dashboard() {
             <Card key={card.label} className="p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm font-medium dark:text-gray-400">{card.label}</p>
+                  <p className={`text-sm font-medium mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {card.label}
+                  </p>
                   {loading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400 mt-2" />
                   ) : (
-                    <p className="text-3xl font-bold mt-2 text-black dark:text-white">{card.value}</p>
+                    <p className={`text-3xl font-bold mt-2 ${dark ? 'text-white' : 'text-black'}`}>
+                      {card.value}
+                    </p>
                   )}
                 </div>
                 <div className={`p-3 rounded-full ${card.color}`}>

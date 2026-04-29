@@ -21,12 +21,15 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col min-h-screen">
-      <div className="p-6 border-b border-gray-700">
+    <div className="w-64 bg-gray-900 text-white flex flex-col h-screen sticky top-0">
+      {/* Branding — fixed at top */}
+      <div className="p-6 border-b border-gray-700 flex-shrink-0">
         <h1 className="text-lg font-bold">Barangay Admin</h1>
         <p className="text-gray-400 text-sm">Management Dashboard</p>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+
+      {/* Nav links — scrollable */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -44,7 +47,9 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t border-gray-700 space-y-2">
+
+      {/* Toggle + Logout — fixed at bottom */}
+      <div className="p-4 border-t border-gray-700 flex-shrink-0 space-y-2">
         <Button
           onClick={() => setDark(!dark)}
           variant="ghost"
