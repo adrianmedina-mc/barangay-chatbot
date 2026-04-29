@@ -27,6 +27,24 @@ router.patch('/:id', async (req, res) => {
   res.json({ message: 'Updated' });
 });
 
+const { sendMessage } = require('../services/messenger');
+
+router.post('/:id/reply', async (req, res) => {
+  const report = await db.query(
+    'SELECT r.*, res.first_name, res.messenger_id FROM reports r JOIN residents res ON r.resident_id = res.id WHERE r.id = $1',
+    [req.params.id]
+  );
+  
+  if (report.rows.length === 0) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  const { messenger_id, first_name } = report.rows[0];
+  await sendMessage(messenger_id, `📩 Barangay Update on Report #${req.params.id}:\n\n${req.body.message}`);
+
+  res.json({ message: 'Reply sent' });
+});
+
 router.delete('/:id', async (req, res) => {
   await db.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
   res.json({ message: 'Report deleted' });

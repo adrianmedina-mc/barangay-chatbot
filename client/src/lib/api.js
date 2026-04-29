@@ -52,6 +52,8 @@ export const api = {
   deleteReport: (id) => request(`/reports/${id}`, { method: 'DELETE' }),
   deleteResident: (id) => request(`/residents/${id}`, { method: 'DELETE' }),
   getReportStats: () => request('/reports/stats'),
+  replyToReport: (id, message) =>
+  request(`/reports/${id}/reply`, { method: 'POST', body: JSON.stringify({ message }) }),
 
   getAnnouncements: () => request('/announcements'),
   sendAnnouncement: (data) =>

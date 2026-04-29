@@ -3,9 +3,8 @@ import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2} from 'lucide-react';
+import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
-
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -17,6 +16,9 @@ export default function Reports() {
   const [reports, setReports] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [replyModal, setReplyModal] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -43,7 +45,6 @@ export default function Reports() {
     }
   };
 
-  const filtered = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
   const handleDelete = async (id) => {
     if (!confirm('Delete this report permanently?')) return;
     try {
@@ -54,6 +55,24 @@ export default function Reports() {
       toast.error('Failed to delete report');
     }
   };
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setSendingReply(true);
+    try {
+      await api.replyToReport(replyModal, replyText);
+      toast.success('Reply sent to resident');
+      setReplyModal(null);
+      setReplyText('');
+    } catch (err) {
+      toast.error('Failed to send reply');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const filtered = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -70,7 +89,6 @@ export default function Reports() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
-          
         </div>
         <p className="text-gray-500 mb-8">{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
 
@@ -121,6 +139,9 @@ export default function Reports() {
                           Reopen
                         </Button>
                       )}
+                      <Button size="sm" variant="ghost" onClick={() => setReplyModal(report.id)} className="text-blue-500 hover:text-blue-700">
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleDelete(report.id)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -129,6 +150,31 @@ export default function Reports() {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* Reply Modal */}
+        {replyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setReplyModal(null); setReplyText(''); }}>
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-1">Reply to Report #{replyModal}</h3>
+              <p className="text-gray-500 text-sm mb-4">Message will be sent to the resident via Messenger</p>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply here..."
+                className="w-full border rounded-lg px-4 py-3 h-32 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => { setReplyModal(null); setReplyText(''); }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleReply} disabled={!replyText.trim() || sendingReply}>
+                  {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Reply'}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </main>
