@@ -48,6 +48,7 @@ export const api = {
     request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   getResidents: () => request('/residents'),
+  getResident: (id) => request(`/residents/${id}`),
 
   getAnnouncements: () => request('/announcements'),
   sendAnnouncement: (data) =>
