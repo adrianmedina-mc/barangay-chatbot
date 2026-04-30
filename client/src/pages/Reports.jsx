@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -25,6 +24,7 @@ export default function Reports() {
   const [dateFilter, setDateFilter] = useState('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const API_URL = 'https://barangay-chatbot-production.up.railway.app/api';
 
   useEffect(() => {
     setLoading(true);
@@ -141,11 +141,12 @@ export default function Reports() {
             <option value="resolved">Resolved</option>
           </select>
           <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
-          <Download className="w-4 h-4" />
-          Export CSV
-        </Button>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
+          </div>
+        
         </div>
-      </div>
         {/* Date Filter */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <select
