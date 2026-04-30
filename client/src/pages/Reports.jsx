@@ -36,9 +36,13 @@ export default function Reports() {
       const now = new Date();
       
       if (dateFilter === 'today') {
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        end = start;
-      } else if (dateFilter === 'week') {
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        start = todayStart.toISOString();
+        // End is end of today
+        const todayEnd = new Date(todayStart);
+        todayEnd.setHours(23, 59, 59, 999);
+        end = todayEnd.toISOString();
+      }else if (dateFilter === 'week') {
         const weekAgo = new Date(now);
         weekAgo.setDate(weekAgo.getDate() - 7);
         start = weekAgo.toISOString();
