@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
-export function useDarkMode() {
+const DarkModeContext = createContext();
+
+export function DarkModeProvider({ children }) {
   const [dark, setDark] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
@@ -15,5 +17,13 @@ export function useDarkMode() {
     }
   }, [dark]);
 
-  return [dark, setDark];
+  return (
+    <DarkModeContext.Provider value={{ dark, setDark }}>
+      {children}
+    </DarkModeContext.Provider>
+  );
+}
+
+export function useDarkMode() {
+  return useContext(DarkModeContext);
 }

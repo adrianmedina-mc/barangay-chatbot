@@ -5,7 +5,7 @@ import { Card } from '../components/ui/card';
 import { Loader2, Users, Search, MapPin, Calendar, FileText, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button'; 
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useDarkMode } from '../hooks/DarkModeContext';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
@@ -20,7 +20,7 @@ export default function Residents() {
   const [selected, setSelected] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [dark] = useDarkMode();
+  const { dark } = useDarkMode();
 
   useEffect(() => {
     api.getResidents()

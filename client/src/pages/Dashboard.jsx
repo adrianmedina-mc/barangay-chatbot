@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useDarkMode } from '../hooks/DarkModeContext';
 import { FileText, Users, Megaphone, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -13,7 +13,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ reports: 0, residents: 0, announcements: 0 });
   const [chartData, setChartData] = useState({ byCategory: [], byStatus: [] });
   const [loading, setLoading] = useState(true);
-  const [dark] = useDarkMode();
+  const { dark } = useDarkMode();
 
   useEffect(() => {
     async function load() {

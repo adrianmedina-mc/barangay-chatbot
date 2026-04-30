@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
 import Residents from './pages/Residents';
 import Announcements from './pages/Announcements';
+import { DarkModeProvider } from './hooks/DarkModeContext';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -14,6 +15,7 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+    <DarkModeProvider>
     <BrowserRouter>
       <Toaster position="top-right" richColors />
       <Routes>
@@ -25,5 +27,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>
+    </DarkModeProvider>
   );
 }

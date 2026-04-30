@@ -5,7 +5,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useDarkMode } from '../hooks/DarkModeContext';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -20,7 +20,7 @@ export default function Reports() {
   const [replyModal, setReplyModal] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
-  const [dark] = useDarkMode();
+  const { dark } = useDarkMode();
 
   useEffect(() => {
     loadReports();

@@ -4,6 +4,7 @@ import { api, setToken } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
+import { useDarkMode } from '../hooks/DarkModeContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { dark } = useDarkMode();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
