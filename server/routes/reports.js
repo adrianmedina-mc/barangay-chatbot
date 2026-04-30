@@ -18,7 +18,28 @@ router.get('/stats', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-  const result = await db.query('SELECT r.*, res.first_name, res.last_name, res.address FROM reports r JOIN residents res ON r.resident_id = res.id ORDER BY r.created_at DESC');
+  const { startDate, endDate } = req.query;
+  
+  let query = 'SELECT r.*, res.first_name, res.last_name, res.address FROM reports r JOIN residents res ON r.resident_id = res.id';
+  const params = [];
+  const conditions = [];
+
+  if (startDate) {
+    conditions.push('r.created_at >= $' + (params.length + 1));
+    params.push(startDate);
+  }
+  if (endDate) {
+    conditions.push('r.created_at <= $' + (params.length + 1));
+    params.push(endDate + 'T23:59:59'); // Include the entire end date
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  query += ' ORDER BY r.created_at DESC';
+
+  const result = await db.query(query, params);
   res.json(result.rows);
 });
 

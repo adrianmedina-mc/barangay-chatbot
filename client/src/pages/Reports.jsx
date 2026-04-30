@@ -21,14 +21,39 @@ export default function Reports() {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const { dark } = useDarkMode();
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   useEffect(() => {
+    setLoading(true);
     loadReports();
-  }, []);
+  }, [dateFilter, customStart, customEnd]);
 
   const loadReports = async () => {
     try {
-      const data = await api.getReports();
+      let start, end;
+      const now = new Date();
+      
+      if (dateFilter === 'today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        end = start;
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        start = weekAgo.toISOString();
+        end = now.toISOString();
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        start = monthAgo.toISOString();
+        end = now.toISOString();
+      } else if (dateFilter === 'custom' && customStart) {
+        start = customStart;
+        end = customEnd || now.toISOString();
+      }
+
+      const data = await api.getReports(start, end);
       setReports(data);
     } catch (err) {
       toast.error('Failed to load reports');
@@ -91,6 +116,39 @@ export default function Reports() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className={`border rounded-lg px-4 py-2 shadow-sm ${dark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white'}`}
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          {dateFilter === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className={`border rounded-lg px-3 py-2 shadow-sm ${dark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white'}`}
+              />
+              <span className={dark ? 'text-gray-400' : 'text-gray-500'}>to</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className={`border rounded-lg px-3 py-2 shadow-sm ${dark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white'}`}
+              />
+            </div>
+          )}
         </div>
         <p className={`mb-8 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
 
