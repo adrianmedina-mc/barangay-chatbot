@@ -26,6 +26,7 @@ export default function Reports() {
   const [customEnd, setCustomEnd] = useState('');
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered - dateFilter:', dateFilter);
     setLoading(true);
     loadReports();
   }, [dateFilter, customStart, customEnd]);
