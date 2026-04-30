@@ -154,10 +154,7 @@ export default function Reports() {
             <option value="month">Last 30 Days</option>
             <option value="custom">Custom Range</option>
           </select>
-          <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
+          
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2">
               <input
@@ -177,7 +174,10 @@ export default function Reports() {
           )}
         </div>
         <p className={`mb-8 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
-
+        <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Export CSV
+        </Button>
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />

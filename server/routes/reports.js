@@ -71,5 +71,31 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: 'Report deleted' });
 });
 
+router.get('/export', async (req, res) => {
+  const result = await db.query(
+    "SELECT r.id, r.category, r.description, r.status, res.first_name || ' ' || res.last_name as resident, res.address, r.created_at FROM reports r JOIN residents res ON r.resident_id = res.id ORDER BY r.created_at DESC"
+  );
+
+  const headers = ['ID', 'Category', 'Description', 'Status', 'Resident', 'Address', 'Date'];
+  let csv = headers.join(',') + '\n';
+
+  result.rows.forEach(row => {
+    const escaped = headers.map(h => {
+      const key = h.toLowerCase();
+      let val = row[key] || '';
+      if (key === 'date') val = new Date(row.created_at).toLocaleDateString('en-PH');
+      // Escape commas and quotes
+      if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+        val = '"' + val.replace(/"/g, '""') + '"';
+      }
+      return val;
+    });
+    csv += escaped.join(',') + '\n';
+  });
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=barangay-reports.csv');
+  res.send(csv);
+});
 
 module.exports = router;
