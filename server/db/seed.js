@@ -1,8 +1,6 @@
 const db = require('./init');
 const bcrypt = require('bcryptjs');
 
-console.log('Seeding database...');
-
 // Clear existing data (optional — comment out if you want to keep your real data)
 db.exec('DELETE FROM announcements');
 db.exec('DELETE FROM reports');
@@ -34,8 +32,6 @@ for (const r of residents) {
   insertResident.run(r.messenger_id, r.first_name, r.last_name, r.age, r.address, 'idle', '{}');
 }
 
-console.log(`Created ${residents.length} residents`);
-
 // Get resident IDs
 const residentIds = db.prepare('SELECT id, first_name FROM residents').all();
 
@@ -63,8 +59,6 @@ for (const r of reports) {
   insertReport.run(resident.id, r.category, r.description, r.status, date);
 }
 
-console.log(`Created ${reports.length} reports`);
-
 // Create announcements
 const announcements = [
   { message: 'Barangay General Assembly this Saturday, 2PM at the Barangay Hall. All residents are encouraged to attend.', age_min: null, age_max: null, recipient_count: 5 },
@@ -83,9 +77,3 @@ for (const a of announcements) {
   const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
   insertAnnouncement.run(getAdminId.id, a.message, a.age_min, a.age_max, a.recipient_count, date);
 }
-
-console.log(`Created ${announcements.length} announcements`);
-console.log('\n✅ Database seeded successfully!');
-console.log('\nLogin credentials:');
-console.log('  Email: admin@barangay.gov.ph');
-console.log('  Password: admin123');

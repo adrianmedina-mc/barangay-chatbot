@@ -31,5 +31,4 @@ app.get('/api/health', (req, res) => {
 startScheduler();
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });// force deploy 

@@ -26,13 +26,11 @@ export default function Reports() {
   const [customEnd, setCustomEnd] = useState('');
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered - dateFilter:', dateFilter);
     setLoading(true);
     loadReports();
   }, [dateFilter, customStart, customEnd]);
 
   const loadReports = async () => {
-    console.log('Loading reports with filter:', dateFilter, customStart, customEnd);
     try {
       let start, end;
       const now = new Date();
@@ -58,10 +56,8 @@ export default function Reports() {
         start = customStart;
         end = customEnd || now.toISOString();
       }
-      console.log('📤 Calling API with start:', start, 'end:', end);
 
       const data = await api.getReports(start, end);
-      console.log('📦 API returned:', data.length, 'reports', data);
       setReports(data);
     } catch (err) {
       toast.error('Failed to load reports');
