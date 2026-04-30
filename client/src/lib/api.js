@@ -43,7 +43,13 @@ export const api = {
   login: (email, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 
-  getReports: () => request('/reports'),
+  getReports: (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const query = params.toString();
+    return request(`/reports${query ? '?' + query : ''}`);
+  },
   updateReport: (id, status) =>
     request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 

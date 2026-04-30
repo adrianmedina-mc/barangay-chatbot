@@ -58,6 +58,7 @@ export default function Reports() {
         start = customStart;
         end = customEnd || now.toISOString();
       }
+      console.log('📤 Calling API with start:', start, 'end:', end);
 
       const data = await api.getReports(start, end);
       console.log('📦 API returned:', data.length, 'reports', data);
