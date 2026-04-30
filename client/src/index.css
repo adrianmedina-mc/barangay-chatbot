@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+}
+
 :root {
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
   --background: #ffffff;
   --foreground: #111827;
   --muted: #f3f4f6;
@@ -10,13 +13,12 @@
 }
 
 .dark {
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
   --background: #1f2937;
   --foreground: #f9fafb;
   --muted: #374151;
   --input: #4b5563;
 }
+
 .dark body {
   background-color: #111827;
 }
