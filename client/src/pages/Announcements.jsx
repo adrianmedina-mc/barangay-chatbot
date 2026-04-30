@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Loader2, Megaphone, Send, Users, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -16,6 +17,7 @@ export default function Announcements() {
   const [scheduleAt, setScheduleAt] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dark] = useDarkMode();
 
   useEffect(() => {
     loadAnnouncements();

@@ -5,6 +5,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -19,6 +20,7 @@ export default function Reports() {
   const [replyModal, setReplyModal] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [dark] = useDarkMode();
 
   useEffect(() => {
     loadReports();
@@ -78,19 +80,19 @@ export default function Reports() {
       <Sidebar />
       <main className="flex-1 p-8 bg-gray-50">
         <div className="flex justify-between items-center mb-2">
-          <h1 className="text-3xl font-bold">Reports</h1>
-          <select
+          <h1 className={`text-3xl font-bold ${dark ? 'text-white' : 'text-black'}`}>Reports</h1>
+          <select 
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="border rounded-lg px-4 py-2 bg-white shadow-sm"
-          >
+            className={`border rounded-lg px-4 py-2 shadow-sm ${dark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white'}`}
+            >
             <option value="all">All Reports</option>
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
         </div>
-        <p className="text-gray-500 mb-8">{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
+        <p className={`mb-8 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
 
         {loading ? (
           <div className="flex justify-center py-16">
@@ -99,8 +101,8 @@ export default function Reports() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No reports found</p>
-            <p className="text-gray-400 text-sm">Reports submitted by residents will appear here</p>
+            <p className={`text-lg ${dark ? 'text-gray-400' : 'text-gray-500'}`}>No reports found</p>
+            <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Reports submitted by residents will appear here</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -111,16 +113,16 @@ export default function Reports() {
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-lg">#{report.id}</span>
+                        <span className={`font-semibold text-lg ${dark ? 'text-white' : 'text-black'}`}>#{report.id}</span>
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[report.status]?.color}`}>
                           <StatusIcon className="w-3 h-3" />
                           {statusConfig[report.status]?.label}
                         </span>
-                        <span className="text-gray-400 text-sm">• {report.category}</span>
+                        <span className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-400'}`}>• {report.category}</span>
                       </div>
-                      <p className="text-gray-700 mb-2">{report.description}</p>
-                      <p className="text-gray-400 text-sm">
-                        From: <span className="font-medium text-gray-600">{report.first_name} {report.last_name}</span> • {report.address} • {new Date(report.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      <p className={`mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{report.description}</p>
+                      <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        From: <span className={`font-medium ${dark ? 'text-gray-200' : 'text-gray-600'}`}>{report.first_name} {report.last_name}</span> • {report.address} • {new Date(report.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
@@ -156,14 +158,14 @@ export default function Reports() {
         {/* Reply Modal */}
         {replyModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setReplyModal(null); setReplyText(''); }}>
-            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold mb-1">Reply to Report #{replyModal}</h3>
-              <p className="text-gray-500 text-sm mb-4">Message will be sent to the resident via Messenger</p>
+            <div className={`rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl ${dark ? 'bg-gray-800' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
+              <h3 className={`text-lg font-semibold mb-1 ${dark ? 'text-white' : 'text-black'}`}>Reply to Report #{replyModal}</h3>
+              <p className={`text-sm mb-4 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Message will be sent to the resident via Messenger</p>
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Type your reply here..."
-                className="w-full border rounded-lg px-4 py-3 h-32 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border rounded-lg px-4 py-3 h-32 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 ${dark ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' : ''}`}
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
