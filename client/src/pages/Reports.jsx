@@ -127,24 +127,24 @@ export default function Reports() {
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       {report.status === 'pending' && (
-                        <Button size="sm" onClick={() => handleStatusChange(report.id, 'in_progress')}>
+                        <Button size="sm" variant="default" onClick={() => handleStatusChange(report.id, 'in_progress')}>
                           Start Working
                         </Button>
                       )}
                       {report.status === 'in_progress' && (
-                        <Button size="sm" onClick={() => handleStatusChange(report.id, 'resolved')}>
+                        <Button size="sm" variant="default" onClick={() => handleStatusChange(report.id, 'resolved')}>
                           Resolve
                         </Button>
                       )}
                       {report.status === 'resolved' && (
-                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(report.id, 'pending')}>
+                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(report.id, 'pending')} className={dark ? 'text-white border-gray-500 hover:bg-gray-700' : ''}>
                           Reopen
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => setReplyModal(report.id)} className="text-blue-500 hover:text-blue-700">
+                      <Button size="sm" variant="ghost" onClick={() => setReplyModal(report.id)} className={dark ? 'text-blue-400 hover:bg-gray-700' : 'text-blue-500 hover:text-blue-700'}>
                         <MessageCircle className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(report.id)} className="text-red-500 hover:text-red-700">
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(report.id)} className={dark ? 'text-red-400 hover:bg-gray-700' : 'text-red-500 hover:text-red-700'}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
