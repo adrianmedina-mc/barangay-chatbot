@@ -31,6 +31,7 @@ export default function Reports() {
   }, [dateFilter, customStart, customEnd]);
 
   const loadReports = async () => {
+    console.log('Loading reports with filter:', dateFilter, customStart, customEnd);
     try {
       let start, end;
       const now = new Date();
