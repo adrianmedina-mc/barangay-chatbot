@@ -129,6 +129,7 @@ export default function Reports() {
       <main className="flex-1 p-8 bg-gray-50">
         <div className="flex justify-between items-center mb-2">
           <h1 className={`text-3xl font-bold ${dark ? 'text-white' : 'text-black'}`}>Reports</h1>
+          <div className="flex items-center gap-3">
           <select 
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -139,8 +140,12 @@ export default function Reports() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
+          <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
+          <Download className="w-4 h-4" />
+          Export CSV
+        </Button>
         </div>
-
+      </div>
         {/* Date Filter */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <select
@@ -174,10 +179,7 @@ export default function Reports() {
           )}
         </div>
         <p className={`mb-8 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{filtered.length} report{filtered.length !== 1 ? 's' : ''}</p>
-        <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Export CSV
-        </Button>
+        
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
