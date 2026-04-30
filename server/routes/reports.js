@@ -95,11 +95,7 @@ router.get('/export', async (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=barangay-reports.csv');
   res.send(csv);
-});
 
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=barangay-reports.csv');
-  res.send(csv);
 });
 
 module.exports = router;
