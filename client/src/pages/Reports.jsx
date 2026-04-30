@@ -3,9 +3,10 @@ import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle } from 'lucide-react';
+import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDarkMode } from '../hooks/DarkModeContext';
+import { api, getToken } from '../lib/api';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -102,6 +103,24 @@ export default function Reports() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reports/export`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'barangay-reports.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Reports exported');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   const filtered = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
 
   return (
@@ -135,7 +154,10 @@ export default function Reports() {
             <option value="month">Last 30 Days</option>
             <option value="custom">Custom Range</option>
           </select>
-
+          <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2">
               <input
