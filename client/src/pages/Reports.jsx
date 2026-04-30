@@ -60,6 +60,7 @@ export default function Reports() {
       }
 
       const data = await api.getReports(start, end);
+      console.log('📦 API returned:', data.length, 'reports', data);
       setReports(data);
     } catch (err) {
       toast.error('Failed to load reports');
