@@ -195,7 +195,7 @@ export default function Announcements() {
                     <Send className="w-5 h-5 text-green-500 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <p className={`text-gray-700 ${dark ? 'text-gray-300' : ''}`}>{a.message}</p>
+                    <p className={dark ? 'text-gray-200' : 'text-gray-700'}>{a.message}</p>
                     <div className={`flex flex-wrap gap-4 mt-2 text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
                       {a.status === 'scheduled' ? (
                         <span className="text-purple-600 font-medium">Scheduled</span>
