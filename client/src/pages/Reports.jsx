@@ -140,7 +140,7 @@ export default function Reports() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
-          <Button size="sm" variant="outline" onClick={handleExport} className="gap-2">
+          <Button size="sm" variant="outline" onClick={handleExport} className={`gap-2 ${dark ? 'text-white border-gray-500 hover:bg-gray-700' : ''}`}>
             <Download className="w-4 h-4" />
             Export CSV
           </Button>

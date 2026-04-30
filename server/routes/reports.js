@@ -73,7 +73,7 @@ router.delete('/:id', async (req, res) => {
 
 router.get('/export', async (req, res) => {
   const result = await db.query(
-    "SELECT r.id, r.category, r.description, r.status, res.first_name || ' ' || res.last_name as resident, res.address, r.created_at FROM reports r JOIN residents res ON r.resident_id = res.id ORDER BY r.created_at DESC"
+    "SELECT r.id, r.category, r.description, r.status, COALESCE(res.first_name || ' ' || res.last_name, 'Unknown') as resident, res.address, r.created_at FROM reports r LEFT JOIN residents res ON r.resident_id = res.id ORDER BY r.created_at DESC"
   );
 
   const headers = ['ID', 'Category', 'Description', 'Status', 'Resident', 'Address', 'Date'];
@@ -84,7 +84,6 @@ router.get('/export', async (req, res) => {
       const key = h.toLowerCase();
       let val = row[key] || '';
       if (key === 'date') val = new Date(row.created_at).toLocaleDateString('en-PH');
-      // Escape commas and quotes
       if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
         val = '"' + val.replace(/"/g, '""') + '"';
       }
@@ -92,6 +91,11 @@ router.get('/export', async (req, res) => {
     });
     csv += escaped.join(',') + '\n';
   });
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=barangay-reports.csv');
+  res.send(csv);
+});
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=barangay-reports.csv');
