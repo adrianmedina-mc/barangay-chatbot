@@ -152,11 +152,43 @@ async function handleMessage(senderId, messageText, quickReplyPayload) {
 }
 
 async function showMainMenu(senderId, firstName) {
-  const greeting = firstName ? `Welcome back, ${firstName}!` : 'Hello!';
-  return sendQuickReplies(senderId, `${greeting}\n\nWhat would you like to do?`, [
+  const resident = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
+  
+  if (!resident.rows.length) {
+    return sendQuickReplies(senderId, 'Hello! What would you like to do?', [
+      { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+      { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    ]);
+  }
+
+  const residentId = resident.rows[0].id;
+  
+  // Check report stats
+  const pendingCount = await db.query(
+    "SELECT COUNT(*) as count FROM reports WHERE resident_id = $1 AND status IN ('pending', 'in_progress')",
+    [residentId]
+  );
+  const totalCount = await db.query(
+    'SELECT COUNT(*) as count FROM reports WHERE resident_id = $1',
+    [residentId]
+  );
+
+  const openReports = parseInt(pendingCount.rows[0].count);
+  const hasSubmitted = parseInt(totalCount.rows[0].count) > 0;
+
+  let greeting;
+  if (openReports > 0) {
+    greeting = `Welcome back, ${firstName}! 👋\n\nYou have ${openReports} open report${openReports > 1 ? 's' : ''}. The barangay is working on ${openReports > 1 ? 'them' : 'it'}.\n\nWhat would you like to do?`;
+  } else if (hasSubmitted) {
+    greeting = `Welcome back, ${firstName}! 👋\n\nAll your previous reports have been resolved. Need help with something new?\n\nWhat would you like to do?`;
+  } else {
+    greeting = `Welcome back, ${firstName}! 👋\n\nNeed to report an issue in your barangay? I'm here to help.\n\nWhat would you like to do?`;
+  }
+
+  return sendQuickReplies(senderId, greeting, [
     { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-    { title: '❓ FAQs', payload: 'MENU_FAQ' },
     { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+    { title: '❓ FAQs', payload: 'MENU_FAQ' },
   ]);
 }
 
