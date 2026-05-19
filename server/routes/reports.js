@@ -44,7 +44,32 @@ router.get('/', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
-  await db.query('UPDATE reports SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
+  // Get the report with resident info
+  const report = await db.query(
+    'SELECT r.*, res.messenger_id, res.first_name FROM reports r JOIN residents res ON r.resident_id = res.id WHERE r.id = $1',
+    [req.params.id]
+  );
+
+  if (report.rows.length === 0) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  const { messenger_id, first_name, category } = report.rows[0];
+  const newStatus = req.body.status;
+  const statusLabel = newStatus.replace('_', ' ');
+
+  // Update the report
+  await db.query('UPDATE reports SET status = $1 WHERE id = $2', [newStatus, req.params.id]);
+
+  // Send notification to resident
+  if (messenger_id) {
+    const emoji = newStatus === 'in_progress' ? '🔵' : newStatus === 'resolved' ? '✅' : '🔄';
+    await sendMessage(
+      messenger_id,
+      `${emoji} Update on your report #${req.params.id}\n\nCategory: ${category}\nStatus: ${statusLabel}\n\nThank you for your patience, ${first_name || 'resident'}!`
+    );
+  }
+
   res.json({ message: 'Updated' });
 });
 
