@@ -66,7 +66,13 @@ router.patch('/:id', async (req, res) => {
     const emoji = newStatus === 'in_progress' ? '🔵' : newStatus === 'resolved' ? '✅' : '🔄';
     await sendMessage(
       messenger_id,
-      `${emoji} Update on your report #${req.params.id}\n\nCategory: ${category}\nStatus: ${statusLabel}\n\nThank you for your patience, ${first_name || 'resident'}!`
+      `${emoji} Your report has been updated!\n\n` +
+      `📋 Report #${req.params.id}\n` +
+      `📂 Category: ${category}\n` +
+      `📝 Description: ${report.rows[0].description}\n` +
+      `📅 Submitted: ${new Date(report.rows[0].created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}\n` +
+      `🔹 New Status: ${statusLabel}\n\n` +
+      `Thank you for your patience, ${first_name || 'resident'}!`
     );
   }
 
