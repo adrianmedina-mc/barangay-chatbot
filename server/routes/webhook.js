@@ -116,13 +116,13 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   if (state === 'idle') return showMainMenu(senderId, resident.first_name);
 
-  // Report flow
+  // Report category selection
   if (state === 'report_category') {
     const map = { CAT_INFRA: 'Infrastructure', CAT_SAFETY: 'Safety', CAT_SANITATION: 'Sanitation', CAT_NOISE: 'Noise', CAT_OTHER: 'Other' };
     if (map[text]) {
       tempData.report_category = map[text];
       await db.query("UPDATE residents SET conversation_state = 'report_description', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-      return sendMessage(senderId, `Category: ${map[text]}\n\nDescribe the issue:`);
+      return sendMessage(senderId, `Category: ${map[text]}\n\nDescribe the issue or send a photo:`);
     }
     return sendQuickReplies(senderId, 'Select a category:', [
       { title: '🏗️ Infrastructure', payload: 'CAT_INFRA' },
@@ -133,57 +133,62 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     ]);
   }
 
+  // Report description with photo support
   if (state === 'report_description') {
-  let imageUrl = null;
+    let imageUrl = null;
 
-  // If the user sent a photo, upload it
-  if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
-    await sendMessage(senderId, '📷 Processing your photo...');
-    imageUrl = await uploadImage(attachments[0].payload.url);
-    if (imageUrl) {
-      await sendMessage(senderId, '✅ Photo attached to your report.');
-    } else {
-      await sendMessage(senderId, '⚠️ Could not process photo, but your report will be submitted.');
+    if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
+      await sendMessage(senderId, '📷 Processing your photo...');
+      imageUrl = await uploadImage(attachments[0].payload.url);
+      if (imageUrl) {
+        await sendMessage(senderId, '✅ Photo attached to your report.');
+      } else {
+        await sendMessage(senderId, '⚠️ Could not process photo, but your report will be submitted.');
+      }
     }
+
+    if (text && text.length >= 10) {
+      await db.query(
+        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+        [resident.id, tempData.report_category, text, imageUrl]
+      );
+      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      const idRes = await db.query('SELECT lastval() as id');
+      const reportId = idRes.rows[0].id;
+      
+      let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
+      if (imageUrl) reply += '\n📷 Photo attached';
+      reply += '\n\nBarangay staff will review this.';
+      
+      return sendQuickReplies(senderId, reply, [
+        { title: '📝 New Report', payload: 'MENU_REPORT' },
+        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+      ]);
+    }
+
+    if (imageUrl && (!text || text.length < 10)) {
+      await db.query(
+        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+        [resident.id, tempData.report_category, 'Photo report (no description)', imageUrl]
+      );
+      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      
+      return sendQuickReplies(senderId, '✅ Photo report submitted! Barangay staff will review it.', [
+        { title: '📝 New Report', payload: 'MENU_REPORT' },
+        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+      ]);
+    }
+
+    return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
   }
 
-  // If they sent text (with or without photo), use it as description
-  if (text && text.length >= 10) {
-    await db.query(
-      'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-      [resident.id, tempData.report_category, text, imageUrl]
-    );
-    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-    const idRes = await db.query('SELECT lastval() as id');
-    const reportId = idRes.rows[0].id;
-    
-    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
-    if (imageUrl) reply += '\n📷 Photo attached';
-    reply += '\n\nBarangay staff will review this.';
-    
-    return sendQuickReplies(senderId, reply, [
-      { title: '📝 New Report', payload: 'MENU_REPORT' },
-      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-    ]);
-  }
-
-  // If only photo sent without text
-  if (imageUrl && (!text || text.length < 10)) {
-    await db.query(
-      'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-      [resident.id, tempData.report_category, 'Photo report (no description)', imageUrl]
-    );
-    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-    
-    return sendQuickReplies(senderId, '✅ Photo report submitted! Barangay staff will review it.', [
-      { title: '📝 New Report', payload: 'MENU_REPORT' },
-      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-    ]);
-  }
-
-  // If text is too short and no photo
-  return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
+  // Fallback
+  return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
+    { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+    { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+  ]);
 }
 
 async function showMainMenu(senderId, firstName) {
@@ -198,7 +203,6 @@ async function showMainMenu(senderId, firstName) {
 
   const residentId = resident.rows[0].id;
   
-  // Check report stats
   const pendingCount = await db.query(
     "SELECT COUNT(*) as count FROM reports WHERE resident_id = $1 AND status IN ('pending', 'in_progress')",
     [residentId]
