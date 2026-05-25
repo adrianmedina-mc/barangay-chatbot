@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/init');
 const { sendMessage, sendQuickReplies } = require('../services/messenger');
+const { uploadImage } = require('../services/upload');
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
 
@@ -23,7 +24,8 @@ router.post('/', (req, res) => {
         if (event.message) {
           const text = event.message.text || '';
           const payload = event.message.quick_reply?.payload || '';
-          handleMessage(event.sender.id, text, payload);
+          const attachments = event.message.attachments || [];
+          handleMessage(event.sender.id, text, payload, attachments);
         }
       });
     });
@@ -32,7 +34,7 @@ router.post('/', (req, res) => {
   return res.sendStatus(404);
 });
 
-async function handleMessage(senderId, messageText, quickReplyPayload) {
+async function handleMessage(senderId, messageText, quickReplyPayload, attachments) {
   const text = (quickReplyPayload || messageText || '').trim();
   const upperText = text.toUpperCase();
 
@@ -132,23 +134,56 @@ async function handleMessage(senderId, messageText, quickReplyPayload) {
   }
 
   if (state === 'report_description') {
-    if (text.length < 10) return sendMessage(senderId, 'Please provide more detail (at least 10 characters).');
-    await db.query('INSERT INTO reports (resident_id, category, description) VALUES ($1, $2, $3)', [resident.id, tempData.report_category, text]);
+  let imageUrl = null;
+
+  // If the user sent a photo, upload it
+  if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
+    await sendMessage(senderId, '📷 Processing your photo...');
+    imageUrl = await uploadImage(attachments[0].payload.url);
+    if (imageUrl) {
+      await sendMessage(senderId, '✅ Photo attached to your report.');
+    } else {
+      await sendMessage(senderId, '⚠️ Could not process photo, but your report will be submitted.');
+    }
+  }
+
+  // If they sent text (with or without photo), use it as description
+  if (text && text.length >= 10) {
+    await db.query(
+      'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+      [resident.id, tempData.report_category, text, imageUrl]
+    );
     await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
     const idRes = await db.query('SELECT lastval() as id');
     const reportId = idRes.rows[0].id;
-    return sendQuickReplies(senderId, `✅ Report #${reportId} submitted!`, [
+    
+    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
+    if (imageUrl) reply += '\n📷 Photo attached';
+    reply += '\n\nBarangay staff will review this.';
+    
+    return sendQuickReplies(senderId, reply, [
       { title: '📝 New Report', payload: 'MENU_REPORT' },
       { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
       { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
     ]);
   }
 
-  return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
-    { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-    { title: '❓ FAQs', payload: 'MENU_FAQ' },
-    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-  ]);
+  // If only photo sent without text
+  if (imageUrl && (!text || text.length < 10)) {
+    await db.query(
+      'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+      [resident.id, tempData.report_category, 'Photo report (no description)', imageUrl]
+    );
+    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+    
+    return sendQuickReplies(senderId, '✅ Photo report submitted! Barangay staff will review it.', [
+      { title: '📝 New Report', payload: 'MENU_REPORT' },
+      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+    ]);
+  }
+
+  // If text is too short and no photo
+  return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
 }
 
 async function showMainMenu(senderId, firstName) {

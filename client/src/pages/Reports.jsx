@@ -208,6 +208,19 @@ export default function Reports() {
                         <span className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-400'}`}>• {report.category}</span>
                       </div>
                       <p className={`mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{report.description}</p>
+                      {report.image_url && (
+                        <div className="mt-2">
+                          <img 
+                            src={report.image_url} 
+                            alt="Report attachment" 
+                            className="rounded-lg max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(report.image_url, '_blank');
+                            }}
+                          />
+                        </div>
+                      )}
                       <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
                         From: <span className={`font-medium ${dark ? 'text-gray-200' : 'text-gray-600'}`}>{report.first_name} {report.last_name}</span> • {report.address} • {new Date(report.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </p>
