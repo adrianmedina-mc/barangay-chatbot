@@ -21,7 +21,10 @@ router.post('/', (req, res) => {
   if (body.object === 'page') {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
-        if (event.message) {
+        if (event.postback) {
+          const payload = event.postback.payload;
+          handleMessage(event.sender.id, payload);
+        } else if (event.message) {
           const text = event.message.text || '';
           const payload = event.message.quick_reply?.payload || '';
           const attachments = event.message.attachments || [];

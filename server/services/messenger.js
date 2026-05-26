@@ -52,4 +52,39 @@ async function broadcastToResidents(residentIds, messageText) {
   return sent;
 }
 
+async function setPersistentMenu() {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}`,
+      {
+        persistent_menu: [
+          {
+            locale: 'default',
+            composer_input_disabled: false,
+            call_to_actions: [
+              {
+                type: 'postback',
+                title: '📝 Submit Report',
+                payload: 'MENU_REPORT',
+              },
+              {
+                type: 'postback',
+                title: '📋 My Reports',
+                payload: 'MENU_MY_REPORTS',
+              },
+              {
+                type: 'postback',
+                title: '❓ FAQs',
+                payload: 'MENU_FAQ',
+              },
+            ],
+          },
+        ],
+      }
+    );
+    console.log('Persistent menu set successfully');
+  } catch (error) {
+    console.error('Error setting persistent menu:', error.response?.data || error.message);
+  }
+}
 module.exports = { sendMessage, sendQuickReplies, broadcastToResidents };
