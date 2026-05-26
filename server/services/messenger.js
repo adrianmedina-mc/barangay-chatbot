@@ -87,4 +87,4 @@ async function setPersistentMenu() {
     console.error('Error setting persistent menu:', error.response?.data || error.message);
   }
 }
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents };
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, setPersistentMenu };
