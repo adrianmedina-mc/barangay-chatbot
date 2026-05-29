@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db/init');
 const authMiddleware = require('../middleware/auth');
 const { sendMessage } = require('../services/messenger');
+const { sendMessage, sendQuickReplies } = require('../services/messenger');
 
 router.use(authMiddleware);
 
@@ -52,15 +53,17 @@ router.patch('/:id/approve', async (req, res) => {
   // Send approval notification
   const { messenger_id, first_name } = resident.rows[0];
   if (messenger_id) {
-    await sendMessage(
+    await sendQuickReplies(
       messenger_id,
       `🎉 Good news, ${first_name || 'resident'}!\n\n` +
       `Your registration for Barangay Dos ChatBot has been approved!\n\n` +
-      `You now have full access to:\n` +
-      `📝 Submit reports\n` +
-      `📋 Track your reports\n` +
-      `📢 Receive barangay announcements\n\n` +
-      `Use the menu at the bottom to get started!`
+      `You now have full access to all features.\n\n` +
+      `What would you like to do?`,
+      [
+        { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+        { title: '❓ FAQs', payload: 'MENU_FAQ' },
+      ]
     );
   }
 
