@@ -21,7 +21,6 @@ router.post('/', (req, res) => {
   if (body.object === 'page') {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
-        console.log('📨 EVENT:', JSON.stringify(event)); // ← ADD THIS
         if (event.postback) {
           handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
@@ -116,12 +115,12 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   // Residency check
   if (state === 'registration_resident') {
     const choice = quickReplyPayload || text;
-    if (choice === 'RESIDENT_YES') {
+    if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a resident')) {
       tempData.is_resident = true;
       await db.query("UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
       return sendMessage(senderId, 'Please enter your full name:');
     }
-    if (choice === 'RESIDENT_NO') {
+    if (choice === 'RESIDENT_NO' || text.includes('No')) {
       await db.query("UPDATE residents SET is_resident = false, conversation_state = 'non_resident_message', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
       return sendMessage(senderId, 
         '📢 Thank you for your interest!\n\n' +
