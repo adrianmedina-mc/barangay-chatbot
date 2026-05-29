@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/init');
 const authMiddleware = require('../middleware/auth');
-const { sendMessage } = require('../services/messenger');
 const { sendMessage, sendQuickReplies } = require('../services/messenger');
 
 router.use(authMiddleware);
