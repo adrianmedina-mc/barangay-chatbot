@@ -141,7 +141,7 @@ export default function Residents() {
                       )}
                     </div>
                     <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Age: {r.age || 'N/A'} • Purok {r.purok || 'N/A'}, {r.street || 'N/A'}
+                      Age: {r.age || 'N/A'} • Purok {r.purok ? r.purok.replace(/^Purok\s+/i, '') : 'N/A'}, {r.street || 'N/A'}
                     </p>
                   </div>
                 </div>
