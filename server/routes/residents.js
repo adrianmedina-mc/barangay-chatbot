@@ -60,7 +60,7 @@ router.patch('/:id/approve', async (req, res) => {
       `📝 Submit reports\n` +
       `📋 Track your reports\n` +
       `📢 Receive barangay announcements\n\n` +
-      `Type MENU to get started!`
+      `Use the menu at the bottom to get started!`
     );
   }
 
