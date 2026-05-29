@@ -29,6 +29,8 @@ export default function Reports() {
   useEffect(() => {
     setLoading(true);
     loadReports();
+    const interval = setInterval(loadReports, 5000); // Refresh every 10 seconds
+    return () => clearInterval(interval);
   }, [dateFilter, customStart, customEnd]);
 
   const loadReports = async () => {

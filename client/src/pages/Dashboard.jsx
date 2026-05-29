@@ -16,28 +16,31 @@ export default function Dashboard() {
   const { dark } = useDarkMode();
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [reports, residents, announcements, reportStats] = await Promise.all([
-          api.getReports(),
-          api.getResidents(),
-          api.getAnnouncements(),
-          api.getReportStats(),
-        ]);
-        setStats({
-          reports: reports.length,
-          residents: residents.length,
-          announcements: announcements.length,
-        });
-        setChartData(reportStats);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  loadData();
+  const interval = setInterval(loadData, 5000); // Refresh every 10 seconds
+  return () => clearInterval(interval);
+}, []);
+
+const loadData = async () => {
+  try {
+    const [reports, residents, announcements, reportStats] = await Promise.all([
+      api.getReports(),
+      api.getResidents(),
+      api.getAnnouncements(),
+      api.getReportStats(),
+    ]);
+    setStats({
+      reports: reports.length,
+      residents: residents.length,
+      announcements: announcements.length,
+    });
+    setChartData(reportStats);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const cards = [
     { label: 'Total Reports', value: stats.reports, icon: FileText, color: 'text-blue-600 bg-blue-100' },

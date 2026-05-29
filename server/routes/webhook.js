@@ -99,7 +99,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   if (!resident) {
     await db.query("INSERT INTO residents (messenger_id, conversation_state, temp_data) VALUES ($1, 'registration_resident', '{}')", [senderId]);
     return sendQuickReplies(senderId, 
-      '👋 Welcome to Barangay [Name] Bot!\n\nThis service is exclusive for residents of Barangay [Name].\n\nAre you a resident?', 
+      '👋 Welcome to Barangay Dos ChatBot!\n\nThis service is exclusive for residents of Barangay 2, Daet Camarines Norte.\n\nAre you a resident?', 
       [
         { title: '✅ Yes, I am a resident', payload: 'RESIDENT_YES' },
         { title: '❌ No', payload: 'RESIDENT_NO' },
@@ -114,16 +114,17 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // Residency check
   if (state === 'registration_resident') {
-    if (text === 'RESIDENT_YES') {
+    const choice = quickReplyPayload || text;
+    if (choice === 'RESIDENT_YES') {
       tempData.is_resident = true;
       await db.query("UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
       return sendMessage(senderId, 'Please enter your full name:');
     }
-    if (text === 'RESIDENT_NO') {
+    if (choice === 'RESIDENT_NO') {
       await db.query("UPDATE residents SET is_resident = false, conversation_state = 'non_resident_message', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
       return sendMessage(senderId, 
         '📢 Thank you for your interest!\n\n' +
-        'The chatbot features are exclusive to Barangay [Name] residents only. ' +
+        'The chatbot features are exclusive to Barangay 2, Daet Camarines Norte residents only. ' +
         'However, if you have a concern or report, you may type it here and a barangay staff member may review it.\n\n' +
         'Type your message below or type MENU to start over.'
       );

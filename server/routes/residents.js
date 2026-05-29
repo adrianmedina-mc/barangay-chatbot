@@ -2,17 +2,20 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/init');
 const authMiddleware = require('../middleware/auth');
+const { sendMessage } = require('../services/messenger');
+
 router.use(authMiddleware);
 
 router.get('/', async (req, res) => {
-  const result = await db.query('SELECT id, first_name, last_name, age, address, created_at FROM residents ORDER BY created_at DESC');
+  const result = await db.query('SELECT id, first_name, last_name, age, purok, street, is_resident, approved, created_at FROM residents ORDER BY created_at DESC');
   res.json(result.rows);
 });
+
 router.get('/:id', async (req, res) => {
   const resident = await db.query(
-    'SELECT id, first_name, last_name, age, address, created_at FROM residents WHERE id = $1',
-    [req.params.id]
-  );
+  'SELECT id, first_name, last_name, age, purok, street, is_resident, approved, created_at FROM residents WHERE id = $1',
+  [req.params.id]
+);
   
   if (resident.rows.length === 0) {
     return res.status(404).json({ error: 'Resident not found' });
@@ -38,7 +41,29 @@ router.delete('/:id', async (req, res) => {
 });
 
 router.patch('/:id/approve', async (req, res) => {
+  const resident = await db.query('SELECT * FROM residents WHERE id = $1', [req.params.id]);
+  
+  if (resident.rows.length === 0) {
+    return res.status(404).json({ error: 'Resident not found' });
+  }
+
   await db.query('UPDATE residents SET approved = true WHERE id = $1', [req.params.id]);
+
+  // Send approval notification
+  const { messenger_id, first_name } = resident.rows[0];
+  if (messenger_id) {
+    await sendMessage(
+      messenger_id,
+      `🎉 Good news, ${first_name || 'resident'}!\n\n` +
+      `Your registration for Barangay Dos ChatBot has been approved!\n\n` +
+      `You now have full access to:\n` +
+      `📝 Submit reports\n` +
+      `📋 Track your reports\n` +
+      `📢 Receive barangay announcements\n\n` +
+      `Type MENU to get started!`
+    );
+  }
+
   res.json({ message: 'Resident approved' });
 });
 module.exports = router;
