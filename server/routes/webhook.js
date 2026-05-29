@@ -319,11 +319,12 @@ async function showMainMenu(senderId, firstName) {
 
   let greeting;
   if (openReports > 0) {
-    greeting = `Welcome back, ${firstName}! 👋\n\nYou have ${openReports} open report${openReports > 1 ? 's' : ''}. The barangay is working on ${openReports > 1 ? 'them' : 'it'}.\n\nWhat would you like to do?`;
+    const name = firstName || r.first_name || 'resident';
+    greeting = `Welcome back, ${name}! 👋\n\nYou have ${openReports} open report${openReports > 1 ? 's' : ''}. The barangay is working on ${openReports > 1 ? 'them' : 'it'}.\n\nWhat would you like to do?`;
   } else if (hasSubmitted) {
-    greeting = `Welcome back, ${firstName}! 👋\n\nAll your previous reports have been resolved. Need help with something new?\n\nWhat would you like to do?`;
+    greeting = `Welcome back, ${name}! 👋\n\nAll your previous reports have been resolved. Need help with something new?\n\nWhat would you like to do?`;
   } else {
-    greeting = `Welcome back, ${firstName}! 👋\n\nNeed to report an issue in your barangay? I'm here to help.\n\nWhat would you like to do?`;
+    greeting = `Welcome back, ${name}! 👋\n\nNeed to report an issue in your barangay? I'm here to help.\n\nWhat would you like to do?`;
   }
 
   return sendQuickReplies(senderId, greeting, [
