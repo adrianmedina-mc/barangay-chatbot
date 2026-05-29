@@ -21,6 +21,7 @@ router.post('/', (req, res) => {
   if (body.object === 'page') {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
+        console.log('📨 EVENT:', JSON.stringify(event)); // ← ADD THIS
         if (event.postback) {
           handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
