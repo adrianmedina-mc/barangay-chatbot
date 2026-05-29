@@ -64,4 +64,5 @@ export const api = {
   getAnnouncements: () => request('/announcements'),
   sendAnnouncement: (data) =>
     request('/announcements', { method: 'POST', body: JSON.stringify(data) }),
+  approveResident: (id) => request(`/residents/${id}/approve`, { method: 'PATCH' }),
 };

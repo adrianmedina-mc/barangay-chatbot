@@ -7,7 +7,7 @@ function startScheduler() {
     try {
       const result = await db.query("SELECT * FROM announcements WHERE status = 'scheduled' AND scheduled_at <= NOW()");
       for (const a of result.rows) {
-        let query = "SELECT messenger_id FROM residents WHERE conversation_state = 'idle'";
+        let query = "SELECT messenger_id FROM residents WHERE conversation_state = 'idle' AND approved = true";
         const params = [];
         if (a.age_min) { query += ' AND age >= $' + (params.length + 1); params.push(a.age_min); }
         if (a.age_max) { query += ' AND age <= $' + (params.length + 1); params.push(a.age_max); }

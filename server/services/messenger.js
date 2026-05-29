@@ -52,11 +52,14 @@ async function broadcastToResidents(residentIds, messageText) {
   return sent;
 }
 
-async function setPersistentMenu() {
+async function setMessengerProfile() {
   try {
     await axios.post(
       `https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}`,
       {
+        get_started: {
+          payload: 'GET_STARTED',
+        },
         persistent_menu: [
           {
             locale: 'default',
@@ -82,9 +85,10 @@ async function setPersistentMenu() {
         ],
       }
     );
-    console.log('Persistent menu set successfully');
+    console.log('Messenger profile set successfully');
   } catch (error) {
-    console.error('Error setting persistent menu:', error.response?.data || error.message);
+    console.error('Error setting messenger profile:', error.response?.data || error.message);
   }
 }
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, setPersistentMenu };
+
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, setMessengerProfile };

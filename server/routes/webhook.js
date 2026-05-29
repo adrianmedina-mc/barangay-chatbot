@@ -22,8 +22,7 @@ router.post('/', (req, res) => {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
         if (event.postback) {
-          const payload = event.postback.payload;
-          handleMessage(event.sender.id, payload);
+          handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
           const text = event.message.text || '';
           const payload = event.message.quick_reply?.payload || '';
@@ -41,6 +40,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   const text = (quickReplyPayload || messageText || '').trim();
   const upperText = text.toUpperCase();
 
+  // Universal commands
   if (upperText === 'HELP' || upperText === 'MENU' || upperText === 'RESTART') {
     return showMainMenu(senderId);
   }
@@ -50,6 +50,12 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, 'Cancelled! What would you like to do?');
   }
 
+  // Get Started button
+  if (text === 'GET_STARTED') {
+    return showMainMenu(senderId);
+  }
+
+  // Menu navigation
   if (text === 'MENU_REPORT') {
     await db.query("UPDATE residents SET conversation_state = 'report_category', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
     return sendQuickReplies(senderId, 'What type of issue are you reporting?', [
@@ -85,41 +91,107 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     ]);
   }
 
+  // Find or create resident
   let residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
   let resident = residentRes.rows[0];
 
+  // New user — ask residency first
   if (!resident) {
-    await db.query("INSERT INTO residents (messenger_id, conversation_state, temp_data) VALUES ($1, 'registration_name', '{}')", [senderId]);
-    return sendMessage(senderId, '👋 Welcome to Barangay Bot!\n\nWhat is your first name?');
+    await db.query("INSERT INTO residents (messenger_id, conversation_state, temp_data) VALUES ($1, 'registration_resident', '{}')", [senderId]);
+    return sendQuickReplies(senderId, 
+      '👋 Welcome to Barangay [Name] Bot!\n\nThis service is exclusive for residents of Barangay [Name].\n\nAre you a resident?', 
+      [
+        { title: '✅ Yes, I am a resident', payload: 'RESIDENT_YES' },
+        { title: '❌ No', payload: 'RESIDENT_NO' },
+      ]
+    );
   }
 
   const state = resident.conversation_state;
   let tempData = JSON.parse(resident.temp_data || '{}');
 
+  // ─── REGISTRATION FLOW ───
+
+  // Residency check
+  if (state === 'registration_resident') {
+    if (text === 'RESIDENT_YES') {
+      tempData.is_resident = true;
+      await db.query("UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+      return sendMessage(senderId, 'Please enter your full name:');
+    }
+    if (text === 'RESIDENT_NO') {
+      await db.query("UPDATE residents SET is_resident = false, conversation_state = 'non_resident_message', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      return sendMessage(senderId, 
+        '📢 Thank you for your interest!\n\n' +
+        'The chatbot features are exclusive to Barangay [Name] residents only. ' +
+        'However, if you have a concern or report, you may type it here and a barangay staff member may review it.\n\n' +
+        'Type your message below or type MENU to start over.'
+      );
+    }
+    return sendQuickReplies(senderId, 'Please select an option:', [
+      { title: '✅ Yes, I am a resident', payload: 'RESIDENT_YES' },
+      { title: '❌ No', payload: 'RESIDENT_NO' },
+    ]);
+  }
+
+  // Non-resident message handling
+  if (state === 'non_resident_message') {
+    if (text.length >= 5) {
+      await db.query(
+        "INSERT INTO reports (resident_id, category, description, status) VALUES ($1, 'Other', $2, 'pending')",
+        [resident.id, `[NON-RESIDENT] ${text}`]
+      );
+      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      return sendMessage(senderId, '✅ Your message has been received. A barangay staff member may review it. Thank you!');
+    }
+    return sendMessage(senderId, 'Please provide more detail (at least 5 characters) or type MENU to exit.');
+  }
+
+  // Full name
   if (state === 'registration_name') {
-    if (text.length < 2) return sendMessage(senderId, 'Name too short.');
+    if (text.length < 3) return sendMessage(senderId, 'Please enter your full name (at least 3 characters).');
     tempData.first_name = text;
-    await db.query("UPDATE residents SET conversation_state = 'registration_age', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+    await db.query("UPDATE residents SET first_name = $1, conversation_state = 'registration_age', temp_data = $2 WHERE messenger_id = $3", [text, JSON.stringify(tempData), senderId]);
     return sendMessage(senderId, `Thanks, ${text}! How old are you?`);
   }
 
+  // Age
   if (state === 'registration_age') {
     const age = parseInt(text);
     if (isNaN(age) || age < 10 || age > 120) return sendMessage(senderId, 'Enter a valid age (10-120).');
     tempData.age = age;
-    await db.query("UPDATE residents SET conversation_state = 'registration_address', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-    return sendMessage(senderId, 'What is your address?');
+    await db.query("UPDATE residents SET age = $1, conversation_state = 'registration_purok', temp_data = $2 WHERE messenger_id = $3", [age, JSON.stringify(tempData), senderId]);
+    return sendMessage(senderId, 'What is your Purok? (e.g., Purok 3)');
   }
 
-  if (state === 'registration_address') {
-    tempData.address = text;
-    await db.query("UPDATE residents SET first_name = $1, age = $2, address = $3, conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $4", [tempData.first_name, tempData.age, tempData.address, senderId]);
-    return showMainMenu(senderId, tempData.first_name);
+  // Purok
+  if (state === 'registration_purok') {
+    tempData.purok = text;
+    await db.query("UPDATE residents SET purok = $1, conversation_state = 'registration_street', temp_data = $2 WHERE messenger_id = $3", [text, JSON.stringify(tempData), senderId]);
+    return sendMessage(senderId, 'What is your street? (e.g., Mabini Street)');
   }
 
+  // Street + complete registration
+  if (state === 'registration_street') {
+    tempData.street = text;
+    await db.query(
+      "UPDATE residents SET street = $1, conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $2",
+      [text, senderId]
+    );
+    return sendMessage(senderId, 
+      '✅ Registration complete!\n\n' +
+      'Your account is pending approval from the barangay admin. ' +
+      'Once approved, you will have full access to all features including announcements.\n\n' +
+      'You can still submit reports while waiting for approval.\n\n' +
+      'Type MENU to get started.'
+    );
+  }
+
+  // Registered user idle — show main menu
   if (state === 'idle') return showMainMenu(senderId, resident.first_name);
 
-  // Report category selection
+  // ─── REPORT FLOW ───
+
   if (state === 'report_category') {
     const map = { CAT_INFRA: 'Infrastructure', CAT_SAFETY: 'Safety', CAT_SANITATION: 'Sanitation', CAT_NOISE: 'Noise', CAT_OTHER: 'Other' };
     if (map[text]) {
@@ -194,6 +266,8 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   ]);
 }
 
+// ─── HELPER FUNCTIONS ───
+
 async function showMainMenu(senderId, firstName) {
   const resident = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
   
@@ -204,15 +278,38 @@ async function showMainMenu(senderId, firstName) {
     ]);
   }
 
-  const residentId = resident.rows[0].id;
-  
+  const r = resident.rows[0];
+
+  // If non-resident, limited menu
+  if (r.is_resident === false) {
+    return sendQuickReplies(senderId, 'You are registered as a non-resident. You can submit reports or leave a message for the barangay.', [
+      { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+      { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    ]);
+  }
+
+  // If resident but not yet approved
+  if (!r.approved) {
+    return sendQuickReplies(senderId, 
+      `Welcome, ${firstName || 'resident'}!\n\n` +
+      'Your account is pending approval. You can submit reports while waiting.\n\n' +
+      'What would you like to do?',
+      [
+        { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+        { title: '❓ FAQs', payload: 'MENU_FAQ' },
+      ]
+    );
+  }
+
+  // Approved resident — full access
   const pendingCount = await db.query(
     "SELECT COUNT(*) as count FROM reports WHERE resident_id = $1 AND status IN ('pending', 'in_progress')",
-    [residentId]
+    [r.id]
   );
   const totalCount = await db.query(
     'SELECT COUNT(*) as count FROM reports WHERE resident_id = $1',
-    [residentId]
+    [r.id]
   );
 
   const openReports = parseInt(pendingCount.rows[0].count);

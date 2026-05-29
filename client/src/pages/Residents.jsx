@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Sidebar from '../components/layout/Sidebar';
 import { Card } from '../components/ui/card';
-import { Loader2, Users, Search, MapPin, Calendar, FileText, X, Trash2 } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Loader2, Users, Search, MapPin, Calendar, FileText, X, Trash2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '../components/ui/button'; 
 import { useDarkMode } from '../hooks/DarkModeContext';
 
 const statusConfig = {
@@ -40,6 +40,16 @@ export default function Residents() {
     }
   };
 
+  const handleApprove = async (id, name) => {
+    try {
+      await api.approveResident(id);
+      setResidents((prev) => prev.map((r) => r.id === id ? { ...r, approved: true } : r));
+      toast.success(`${name} approved`);
+    } catch (err) {
+      toast.error('Failed to approve resident');
+    }
+  };
+
   const openProfile = async (id) => {
     setProfileLoading(true);
     setModalOpen(true);
@@ -61,7 +71,7 @@ export default function Residents() {
   };
 
   const filtered = residents.filter((r) => {
-    const name = `${r.first_name} ${r.last_name}`.toLowerCase();
+    const name = `${r.first_name || ''} ${r.last_name || ''}`.toLowerCase();
     return name.includes(search.toLowerCase());
   });
 
@@ -106,24 +116,59 @@ export default function Residents() {
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                     <span className="text-blue-600 font-bold text-sm">
-                      {r.first_name?.[0]}{r.last_name?.[0]}
+                      {r.first_name?.[0] || '?'}
                     </span>
                   </div>
                   <div>
-                    <p className={`font-semibold ${dark ? 'text-white' : 'text-black'}`}>{r.first_name} {r.last_name}</p>
-                    <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Age: {r.age} • {r.address}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`font-semibold ${dark ? 'text-white' : 'text-black'}`}>
+                        {r.first_name || 'Unknown'}
+                      </p>
+                      {r.is_resident === false && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          Non-Resident
+                        </span>
+                      )}
+                      {r.is_resident !== false && !r.approved && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                          Pending Approval
+                        </span>
+                      )}
+                      {r.approved && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Approved
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Age: {r.age || 'N/A'} • Purok {r.purok || 'N/A'}, {r.street || 'N/A'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
                     {new Date(r.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </p>
+                  {r.is_resident !== false && !r.approved && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-green-500 border-green-500 hover:bg-green-50"
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        handleApprove(r.id, r.first_name); 
+                      }}
+                    >
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Approve
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     variant="ghost" 
                     onClick={(e) => { 
                       e.stopPropagation();
-                      handleDelete(r.id, `${r.first_name} ${r.last_name}`); 
+                      handleDelete(r.id, `${r.first_name}`); 
                     }} 
                     className="text-red-500 hover:text-red-700"
                   >
@@ -153,12 +198,23 @@ export default function Residents() {
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
                         <span className="text-blue-600 font-bold text-xl">
-                          {selected.first_name?.[0]}{selected.last_name?.[0]}
+                          {selected.first_name?.[0] || '?'}
                         </span>
                       </div>
                       <div>
-                        <h2 className={`text-xl font-bold ${dark ? 'text-white' : 'text-black'}`}>{selected.first_name} {selected.last_name}</h2>
-                        <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Resident #{selected.id}</p>
+                        <h2 className={`text-xl font-bold ${dark ? 'text-white' : 'text-black'}`}>{selected.first_name || 'Unknown'}</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Resident #{selected.id}</p>
+                          {selected.is_resident === false && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Non-Resident</span>
+                          )}
+                          {selected.is_resident !== false && !selected.approved && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>
+                          )}
+                          {selected.approved && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Approved</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <button onClick={closeProfile} className={`p-2 rounded-lg ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
@@ -170,11 +226,11 @@ export default function Residents() {
                   <div className={`p-6 grid grid-cols-2 gap-4 border-b ${dark ? 'border-gray-700' : ''}`}>
                     <div className={`flex items-center gap-2 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
                       <Calendar className="w-4 h-4" />
-                      <span>Age: <strong>{selected.age}</strong></span>
+                      <span>Age: <strong>{selected.age || 'N/A'}</strong></span>
                     </div>
                     <div className={`flex items-center gap-2 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
                       <MapPin className="w-4 h-4" />
-                      <span>{selected.address}</span>
+                      <span>Purok {selected.purok || 'N/A'}, {selected.street || 'N/A'}</span>
                     </div>
                     <div className={`flex items-center gap-2 col-span-2 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
                       <Calendar className="w-4 h-4" />
@@ -194,7 +250,6 @@ export default function Residents() {
                       <div className="space-y-3">
                         {selected.reports.map((report) => (
                           <div key={report.id} className={`border rounded-lg p-4 ${dark ? 'border-gray-700' : ''}`}>
-
                             <div className="flex items-center gap-2 mb-1">
                               <span className={`font-medium ${dark ? 'text-white' : 'text-black'}`}>#{report.id}</span>
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[report.status]?.color}`}>

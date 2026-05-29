@@ -36,4 +36,9 @@ router.delete('/:id', async (req, res) => {
   await db.query('DELETE FROM residents WHERE id = $1', [req.params.id]);
   res.json({ message: 'Resident and associated reports deleted' });
 });
+
+router.patch('/:id/approve', async (req, res) => {
+  await db.query('UPDATE residents SET approved = true WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Resident approved' });
+});
 module.exports = router;

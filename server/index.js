@@ -29,8 +29,8 @@ app.get('/api/health', (req, res) => {
 });
 
 startScheduler();
-const { setPersistentMenu } = require('./services/messenger');
-setPersistentMenu();
+const { setMessengerProfile } = require('./services/messenger');
+setMessengerProfile();
 
 app.listen(PORT, () => {
 });// force deploy 
