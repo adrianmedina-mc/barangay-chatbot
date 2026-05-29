@@ -115,7 +115,8 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   // Residency check
   if (state === 'registration_resident') {
     const choice = quickReplyPayload || text;
-    if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a resident')) {
+    // Check payload, full text, or truncated text
+    if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a reside') || text === '✅ Yes, I am a reside...') {
       tempData.is_resident = true;
       await db.query("UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
       return sendMessage(senderId, 'Please enter your full name:');
