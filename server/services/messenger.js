@@ -107,4 +107,23 @@ async function deletePersistentMenu() {
   }
 }
 
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu };
+async function setGreeting() {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}`,
+      {
+        greeting: [
+          {
+            locale: 'default',
+            text: 'Welcome to Barangay Dos ChatBot! 👋 Tap Get Started to begin.',
+          },
+        ],
+      }
+    );
+    console.log('Greeting set');
+  } catch (error) {
+    console.error('Error setting greeting:', error.response?.data || error.message);
+  }
+}
+
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu, setGreeting };

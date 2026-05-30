@@ -4,7 +4,7 @@ const cors = require('cors');
 const db = require('./db/init');
 const { startScheduler } = require('./services/scheduler');
 // const { setMessengerProfile } = require('./services/messenger');
-const { deletePersistentMenu } = require('./services/messenger');
+const { deletePersistentMenu, setGreeting } = require('./services/messenger');
 
 const webhookRoutes = require('./routes/webhook');
 const authRoutes = require('./routes/auth');
@@ -32,6 +32,7 @@ app.get('/api/health', (req, res) => {
 
 startScheduler();
 deletePersistentMenu();
+setGreeting();
 // setMessengerProfile();
 
 app.listen(PORT, () => {
