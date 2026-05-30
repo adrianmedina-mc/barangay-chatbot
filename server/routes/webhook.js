@@ -21,11 +21,6 @@ router.post('/', (req, res) => {
   if (body.object === 'page') {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
-        // Log EVERYTHING when message exists
-        if (event.message) {
-          console.log('📩 FULL MESSAGE EVENT:', JSON.stringify(event.message));
-        }
-        
         if (event.postback) {
           handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
@@ -45,7 +40,6 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   const text = (quickReplyPayload || messageText || '').trim();
   const upperText = text.toUpperCase();
 
-  // Universal commands
   if (upperText === 'HELP' || upperText === 'MENU' || upperText === 'RESTART') {
     return showMainMenu(senderId);
   }
@@ -55,12 +49,10 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, 'Cancelled! What would you like to do?');
   }
 
-  // Get Started button
   if (text === 'GET_STARTED') {
     return showMainMenu(senderId);
   }
 
-  // Menu navigation
   if (text === 'MENU_REPORT') {
     await db.query("UPDATE residents SET conversation_state = 'report_category', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
     return sendQuickReplies(senderId, 'What type of issue are you reporting?', [
@@ -96,11 +88,9 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     ]);
   }
 
-  // Find or create resident
   let residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
   let resident = residentRes.rows[0];
 
-  // New user — ask residency first
   if (!resident) {
     await db.query("INSERT INTO residents (messenger_id, conversation_state, temp_data) VALUES ($1, 'registration_resident', '{}')", [senderId]);
     return sendQuickReplies(senderId, 
@@ -117,10 +107,8 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // ─── REGISTRATION FLOW ───
 
-  // Residency check
   if (state === 'registration_resident') {
     const choice = quickReplyPayload || text;
-    // Check payload, full text, or truncated text
     if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a reside') || text === '✅ Yes, I am a reside...') {
       tempData.is_resident = true;
       await db.query("UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
@@ -141,7 +129,6 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     ]);
   }
 
-  // Non-resident message handling
   if (state === 'non_resident_message') {
     if (text.length >= 5) {
       await db.query(
@@ -154,7 +141,6 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, 'Please provide more detail (at least 5 characters) or type MENU to exit.');
   }
 
-  // Full name
   if (state === 'registration_name') {
     if (text.length < 3) return sendMessage(senderId, 'Please enter your full name (at least 3 characters).');
     tempData.first_name = text;
@@ -162,23 +148,20 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, `Thanks, ${text}! How old are you?`);
   }
 
-  // Age
   if (state === 'registration_age') {
     const age = parseInt(text);
     if (isNaN(age) || age < 10 || age > 120) return sendMessage(senderId, 'Enter a valid age (10-120).');
     tempData.age = age;
     await db.query("UPDATE residents SET age = $1, conversation_state = 'registration_purok', temp_data = $2 WHERE messenger_id = $3", [age, JSON.stringify(tempData), senderId]);
-    return sendMessage(senderId, 'What is your Purok? (e.g., Purok 3)');
+    return sendMessage(senderId, 'What is your Purok number? (e.g., 3)');
   }
 
-  // Purok
   if (state === 'registration_purok') {
     tempData.purok = text;
     await db.query("UPDATE residents SET purok = $1, conversation_state = 'registration_street', temp_data = $2 WHERE messenger_id = $3", [text, JSON.stringify(tempData), senderId]);
     return sendMessage(senderId, 'What is your street? (e.g., Mabini Street)');
   }
 
-  // Street + complete registration
   if (state === 'registration_street') {
     tempData.street = text;
     await db.query(
@@ -194,62 +177,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     );
   }
 
-  // Registered user idle — show main menu
   if (state === 'idle') return showMainMenu(senderId, resident.first_name);
-
-  // Report location — user shares GPS or skips
-  if (state === 'report_location') {
-    let latitude = null;
-    let longitude = null;
-    let locationText = null;
-
-    // User tapped Skip
-    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP') {
-      // Save without location
-      await db.query(
-        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-        [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null]
-      );
-      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-      const idRes = await db.query('SELECT lastval() as id');
-      return sendQuickReplies(senderId, `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}\n\nBarangay staff will review this.`, [
-        { title: '📝 New Report', payload: 'MENU_REPORT' },
-        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-      ]);
-    }
-
-    // Check for location attachment (Messenger native location share via paperclip)
-    if (attachments && attachments.length > 0 && attachments[0].type === 'location') {
-      latitude = attachments[0].payload.coordinates.lat;
-      longitude = attachments[0].payload.coordinates.long;
-    } else if (text && text.length > 0) {
-      // User typed a location description
-      locationText = text;
-    }
-
-    // Save report with whatever location data we have
-    await db.query(
-      'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-      [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null, latitude, longitude]
-    );
-    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-    
-    const idRes = await db.query('SELECT lastval() as id');
-    const reportId = idRes.rows[0].id;
-    
-    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}`;
-    if (tempData.report_image) reply += '\n📷 Photo attached';
-    if (latitude) reply += '\n📍 GPS location shared';
-    if (locationText) reply += `\n📍 Location: ${locationText}`;
-    reply += '\n\nBarangay staff will review this.';
-    
-    return sendQuickReplies(senderId, reply, [
-      { title: '📝 New Report', payload: 'MENU_REPORT' },
-      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-    ]);
-  }
 
   // ─── REPORT FLOW ───
 
@@ -271,54 +199,96 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // Report description with photo support
   if (state === 'report_description') {
-      let imageUrl = null;
+    let imageUrl = null;
 
-      if (tempData.pending_image) {
-        imageUrl = tempData.pending_image;
-      }
-
-      if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
-        await sendMessage(senderId, '📷 Processing your photo...');
-        const uploadedUrl = await uploadImage(attachments[0].payload.url);
-        if (uploadedUrl) {
-          if (text && text.length >= 10) {
-            // Save report with photo + text, then ask for location
-            tempData.report_description = text;
-            tempData.report_image = uploadedUrl;
-            await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-            return sendQuickReplies(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use Messenger\'s location share (📎 → Location)', [
-              { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
-            ]);
-          }
-          tempData.pending_image = uploadedUrl;
-          await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-          return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (at least 10 characters):');
-        } else {
-          return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
-        }
-      }
-
-      if (text && text.length >= 10) {
-        // Save description, ask for location
-        tempData.report_description = text;
-        tempData.report_image = imageUrl;
-        await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-        return sendQuickReplies(senderId, '📍 Would you like to share your location?', [
-          { content_type: 'location', title: '📍 Share Location', payload: 'LOCATION_SHARED' },
-          { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
-        ]);
-      }
-
-      return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
+    if (tempData.pending_image) {
+      imageUrl = tempData.pending_image;
     }
 
-    // Fallback
-    return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
-      { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-      { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
+      await sendMessage(senderId, '📷 Processing your photo...');
+      const uploadedUrl = await uploadImage(attachments[0].payload.url);
+      if (uploadedUrl) {
+        if (text && text.length >= 10) {
+          tempData.report_description = text;
+          tempData.report_image = uploadedUrl;
+          await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+          return sendQuickReplies(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use Messenger\'s paperclip (📎) → Location', [
+            { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
+          ]);
+        }
+        tempData.pending_image = uploadedUrl;
+        await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+        return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (at least 10 characters):');
+      } else {
+        return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
+      }
+    }
+
+    if (text && text.length >= 10) {
+      tempData.report_description = text;
+      tempData.report_image = imageUrl;
+      await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+      return sendQuickReplies(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use Messenger\'s paperclip (📎) → Location', [
+        { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
+      ]);
+    }
+
+    return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
+  }
+
+  // Report location
+  if (state === 'report_location') {
+    let latitude = null;
+    let longitude = null;
+
+    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP') {
+      await db.query(
+        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+        [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null]
+      );
+      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      const idRes = await db.query('SELECT lastval() as id');
+      return sendQuickReplies(senderId, `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}\n\nBarangay staff will review this.`, [
+        { title: '📝 New Report', payload: 'MENU_REPORT' },
+        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+      ]);
+    }
+
+    if (attachments && attachments.length > 0 && attachments[0].type === 'location') {
+      latitude = attachments[0].payload.coordinates.lat;
+      longitude = attachments[0].payload.coordinates.long;
+    }
+
+    await db.query(
+      'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
+      [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null, latitude, longitude]
+    );
+    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+    
+    const idRes = await db.query('SELECT lastval() as id');
+    const reportId = idRes.rows[0].id;
+    
+    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}`;
+    if (tempData.report_image) reply += '\n📷 Photo attached';
+    if (latitude) reply += '\n📍 GPS location shared';
+    reply += '\n\nBarangay staff will review this.';
+    
+    return sendQuickReplies(senderId, reply, [
+      { title: '📝 New Report', payload: 'MENU_REPORT' },
       { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
     ]);
   }
+
+  // Fallback
+  return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
+    { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+    { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+  ]);
+}
 
 // ─── HELPER FUNCTIONS ───
 
@@ -334,7 +304,6 @@ async function showMainMenu(senderId, firstName) {
 
   const r = resident.rows[0];
 
-  // If non-resident, limited menu
   if (r.is_resident === false) {
     return sendQuickReplies(senderId, 'You are registered as a non-resident. You can submit reports or leave a message for the barangay.', [
       { title: '📝 Submit Report', payload: 'MENU_REPORT' },
@@ -342,7 +311,6 @@ async function showMainMenu(senderId, firstName) {
     ]);
   }
 
-  // If resident but not yet approved
   if (!r.approved) {
     return sendQuickReplies(senderId, 
       `Welcome, ${firstName || 'resident'}!\n\n` +
@@ -356,7 +324,6 @@ async function showMainMenu(senderId, firstName) {
     );
   }
 
-  // Approved resident — full access
   const pendingCount = await db.query(
     "SELECT COUNT(*) as count FROM reports WHERE resident_id = $1 AND status IN ('pending', 'in_progress')",
     [r.id]
@@ -368,10 +335,10 @@ async function showMainMenu(senderId, firstName) {
 
   const openReports = parseInt(pendingCount.rows[0].count);
   const hasSubmitted = parseInt(totalCount.rows[0].count) > 0;
+  const name = firstName || r.first_name || 'resident';
 
   let greeting;
   if (openReports > 0) {
-    const name = firstName || r.first_name || 'resident';
     greeting = `Welcome back, ${name}! 👋\n\nYou have ${openReports} open report${openReports > 1 ? 's' : ''}. The barangay is working on ${openReports > 1 ? 'them' : 'it'}.\n\nWhat would you like to do?`;
   } else if (hasSubmitted) {
     greeting = `Welcome back, ${name}! 👋\n\nAll your previous reports have been resolved. Need help with something new?\n\nWhat would you like to do?`;
