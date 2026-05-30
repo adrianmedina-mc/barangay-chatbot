@@ -212,61 +212,76 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // Report description with photo support
   if (state === 'report_description') {
-    let imageUrl = null;
+      let imageUrl = null;
 
-    if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
-      await sendMessage(senderId, '📷 Processing your photo...');
-      imageUrl = await uploadImage(attachments[0].payload.url);
-      if (imageUrl) {
-        await sendMessage(senderId, '✅ Photo attached to your report.');
-      } else {
-        await sendMessage(senderId, '⚠️ Could not process photo, but your report will be submitted.');
+      // Check if there's a pending photo from a previous message
+      if (tempData.pending_image) {
+        imageUrl = tempData.pending_image;
       }
+
+      // If the user just sent a photo now
+      if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
+        await sendMessage(senderId, '📷 Processing your photo...');
+        const uploadedUrl = await uploadImage(attachments[0].payload.url);
+        if (uploadedUrl) {
+          // If user also sent text, save everything now
+          if (text && text.length >= 10) {
+            await db.query(
+              'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+              [resident.id, tempData.report_category, text, uploadedUrl]
+            );
+            await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+            const idRes = await db.query('SELECT lastval() as id');
+            return sendQuickReplies(senderId, 
+              `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}\n📷 Photo attached\n\nBarangay staff will review this.`,
+              [
+                { title: '📝 New Report', payload: 'MENU_REPORT' },
+                { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+                { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+              ]
+            );
+          }
+          // Photo only — save it temporarily, ask for description
+          tempData.pending_image = uploadedUrl;
+          await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+          return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (at least 10 characters):');
+        } else {
+          await sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
+          return;
+        }
+      }
+
+      // User sends text (could be a description or a response to the photo prompt)
+      if (text && text.length >= 10) {
+        await db.query(
+          'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+          [resident.id, tempData.report_category, text, imageUrl]
+        );
+        await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+        const idRes = await db.query('SELECT lastval() as id');
+        
+        let reply = `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
+        if (imageUrl) reply += '\n📷 Photo attached';
+        reply += '\n\nBarangay staff will review this.';
+        
+        return sendQuickReplies(senderId, reply, [
+          { title: '📝 New Report', payload: 'MENU_REPORT' },
+          { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+          { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+        ]);
+      }
+
+      // Text too short
+      return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
     }
 
-    if (text && text.length >= 10) {
-      await db.query(
-        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-        [resident.id, tempData.report_category, text, imageUrl]
-      );
-      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-      const idRes = await db.query('SELECT lastval() as id');
-      const reportId = idRes.rows[0].id;
-      
-      let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
-      if (imageUrl) reply += '\n📷 Photo attached';
-      reply += '\n\nBarangay staff will review this.';
-      
-      return sendQuickReplies(senderId, reply, [
-        { title: '📝 New Report', payload: 'MENU_REPORT' },
-        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-      ]);
-    }
-
-    if (imageUrl && (!text || text.length < 10)) {
-      await db.query(
-        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-        [resident.id, tempData.report_category, 'Photo report (no description)', imageUrl]
-      );
-      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-      
-      return sendQuickReplies(senderId, '✅ Photo report submitted! Barangay staff will review it.', [
-        { title: '📝 New Report', payload: 'MENU_REPORT' },
-        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-      ]);
-    }
-
-    return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
+    // Fallback
+    return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
+      { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+      { title: '❓ FAQs', payload: 'MENU_FAQ' },
+      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+    ]);
   }
-
-  // Fallback
-  return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
-    { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-    { title: '❓ FAQs', payload: 'MENU_FAQ' },
-    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-  ]);
-}
 
 // ─── HELPER FUNCTIONS ───
 

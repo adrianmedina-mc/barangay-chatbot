@@ -91,4 +91,20 @@ async function setMessengerProfile() {
   }
 }
 
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, setMessengerProfile };
+async function deletePersistentMenu() {
+  try {
+    await axios.delete(
+      `https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}`,
+      {
+        data: {
+          fields: ['persistent_menu'],
+        },
+      }
+    );
+    console.log('Persistent menu deleted');
+  } catch (error) {
+    console.error('Error deleting persistent menu:', error.response?.data || error.message);
+  }
+}
+
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu };
