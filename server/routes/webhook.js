@@ -192,6 +192,39 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   // Registered user idle — show main menu
   if (state === 'idle') return showMainMenu(senderId, resident.first_name);
 
+  // Report location — user shares GPS or skips
+  if (state === 'report_location') {
+    let latitude = null;
+    let longitude = null;
+
+    // Check if user shared location via Messenger's location attachment
+    if (attachments && attachments.length > 0 && attachments[0].type === 'location') {
+      latitude = attachments[0].payload.coordinates.lat;
+      longitude = attachments[0].payload.coordinates.long;
+    }
+
+    // Save the complete report (description + image + location)
+    await db.query(
+      'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
+      [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null, latitude, longitude]
+    );
+    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+    
+    const idRes = await db.query('SELECT lastval() as id');
+    const reportId = idRes.rows[0].id;
+    
+    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}`;
+    if (tempData.report_image) reply += '\n📷 Photo attached';
+    if (latitude) reply += `\n📍 Location shared`;
+    reply += '\n\nBarangay staff will review this.';
+    
+    return sendQuickReplies(senderId, reply, [
+      { title: '📝 New Report', payload: 'MENU_REPORT' },
+      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+    ]);
+  }
+
   // ─── REPORT FLOW ───
 
   if (state === 'report_category') {
@@ -214,64 +247,43 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   if (state === 'report_description') {
       let imageUrl = null;
 
-      // Check if there's a pending photo from a previous message
       if (tempData.pending_image) {
         imageUrl = tempData.pending_image;
       }
 
-      // If the user just sent a photo now
       if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
         await sendMessage(senderId, '📷 Processing your photo...');
         const uploadedUrl = await uploadImage(attachments[0].payload.url);
         if (uploadedUrl) {
-          // If user also sent text, save everything now
           if (text && text.length >= 10) {
-            await db.query(
-              'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-              [resident.id, tempData.report_category, text, uploadedUrl]
-            );
-            await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-            const idRes = await db.query('SELECT lastval() as id');
-            return sendQuickReplies(senderId, 
-              `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}\n📷 Photo attached\n\nBarangay staff will review this.`,
-              [
-                { title: '📝 New Report', payload: 'MENU_REPORT' },
-                { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-                { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-              ]
-            );
+            // Save report with photo + text, then ask for location
+            tempData.report_description = text;
+            tempData.report_image = uploadedUrl;
+            await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+            return sendQuickReplies(senderId, '📍 Would you like to share your location?', [
+              { title: '📍 Share Location', payload: 'LOCATION_YES' },
+              { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
+            ]);
           }
-          // Photo only — save it temporarily, ask for description
           tempData.pending_image = uploadedUrl;
           await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
           return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (at least 10 characters):');
         } else {
-          await sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
-          return;
+          return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
         }
       }
 
-      // User sends text (could be a description or a response to the photo prompt)
       if (text && text.length >= 10) {
-        await db.query(
-          'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-          [resident.id, tempData.report_category, text, imageUrl]
-        );
-        await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-        const idRes = await db.query('SELECT lastval() as id');
-        
-        let reply = `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
-        if (imageUrl) reply += '\n📷 Photo attached';
-        reply += '\n\nBarangay staff will review this.';
-        
-        return sendQuickReplies(senderId, reply, [
-          { title: '📝 New Report', payload: 'MENU_REPORT' },
-          { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-          { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+        // Save description, ask for location
+        tempData.report_description = text;
+        tempData.report_image = imageUrl;
+        await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
+        return sendQuickReplies(senderId, '📍 Would you like to share your location?', [
+          { title: '📍 Share Location', payload: 'LOCATION_YES' },
+          { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
         ]);
       }
 
-      // Text too short
       return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
     }
 

@@ -6,6 +6,7 @@ import { Loader2, Inbox, Clock, CheckCircle2, AlertCircle, Trash2, MessageCircle
 import { toast } from 'sonner';
 import { useDarkMode } from '../hooks/DarkModeContext';
 import { api, getToken } from '../lib/api';
+import MapView from '../components/MapView';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -220,8 +221,11 @@ export default function Reports() {
                               e.stopPropagation();
                               window.open(report.image_url, '_blank');
                             }}
-                          />
+                          />  
                         </div>
+                      )}
+                      {report.latitude && report.longitude && (
+                        <MapView latitude={report.latitude} longitude={report.longitude} description={report.description} />
                       )}
                       <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
                         From: <span className={`font-medium ${dark ? 'text-gray-200' : 'text-gray-600'}`}>{report.first_name} {report.last_name}</span> • {report.address} • {new Date(report.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
