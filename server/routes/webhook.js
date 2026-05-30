@@ -26,7 +26,24 @@ router.post('/', (req, res) => {
         } else if (event.message) {
           const text = event.message.text || '';
           const payload = event.message.quick_reply?.payload || '';
-          const attachments = event.message.attachments || [];
+          
+          // Location attachments come in event.message.attachments
+          let attachments = event.message.attachments || [];
+          
+          // If no attachments array, check if the message itself is a location
+          if (attachments.length === 0 && event.message.type === 'location') {
+            // Messenger sometimes sends location as the message type itself
+            attachments = [{
+              type: 'location',
+              payload: {
+                coordinates: {
+                  lat: event.message.coordinates?.lat,
+                  long: event.message.coordinates?.long,
+                }
+              }
+            }];
+          }
+          
           handleMessage(event.sender.id, text, payload, attachments);
         }
       });
