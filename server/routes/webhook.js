@@ -199,17 +199,32 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // Report location — user shares GPS or skips
   if (state === 'report_location') {
-    console.log('📍 LOCATION STATE - attachments:', JSON.stringify(attachments));
     let latitude = null;
     let longitude = null;
 
-    // Check if user shared location via Messenger's location attachment
+    // User tapped Skip
+    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP') {
+      // Save without location
+      await db.query(
+        'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+        [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null]
+      );
+      await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+      const idRes = await db.query('SELECT lastval() as id');
+      return sendQuickReplies(senderId, `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}\n\nBarangay staff will review this.`, [
+        { title: '📝 New Report', payload: 'MENU_REPORT' },
+        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+      ]);
+    }
+
+    // User shared location
     if (attachments && attachments.length > 0 && attachments[0].type === 'location') {
       latitude = attachments[0].payload.coordinates.lat;
       longitude = attachments[0].payload.coordinates.long;
     }
 
-    // Save the complete report (description + image + location)
+    // Save report with location
     await db.query(
       'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
       [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null, latitude, longitude]
@@ -221,7 +236,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     
     let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}`;
     if (tempData.report_image) reply += '\n📷 Photo attached';
-    if (latitude) reply += `\n📍 Location shared`;
+    if (latitude) reply += '\n📍 Location shared';
     reply += '\n\nBarangay staff will review this.';
     
     return sendQuickReplies(senderId, reply, [
@@ -285,7 +300,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
         tempData.report_image = imageUrl;
         await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
         return sendQuickReplies(senderId, '📍 Would you like to share your location?', [
-          { title: '📍 Share Location', payload: 'LOCATION_YES' },
+          { content_type: 'location', title: '📍 Share Location', payload: 'LOCATION_SHARED' },
           { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
         ]);
       }

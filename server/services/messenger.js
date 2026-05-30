@@ -24,11 +24,22 @@ async function sendQuickReplies(recipientId, messageText, buttons) {
         recipient: { id: recipientId },
         message: {
           text: messageText,
-          quick_replies: buttons.map((btn) => ({
-            content_type: 'text',
-            title: btn.title,
-            payload: btn.payload,
-          })),
+          quick_replies: buttons.map((btn) => {
+            // If button has content_type, use it (for location, email, etc.)
+            if (btn.content_type) {
+              return {
+                content_type: btn.content_type,
+                title: btn.title,
+                payload: btn.payload || 'LOCATION_SHARED',
+              };
+            }
+            // Regular text quick reply
+            return {
+              content_type: 'text',
+              title: btn.title,
+              payload: btn.payload,
+            };
+          }),
         },
       }
     );
