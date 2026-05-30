@@ -21,29 +21,17 @@ router.post('/', (req, res) => {
   if (body.object === 'page') {
     body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
+        // Log EVERYTHING when message exists
+        if (event.message) {
+          console.log('📩 FULL MESSAGE EVENT:', JSON.stringify(event.message));
+        }
+        
         if (event.postback) {
           handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
           const text = event.message.text || '';
           const payload = event.message.quick_reply?.payload || '';
-          
-          // Location attachments come in event.message.attachments
-          let attachments = event.message.attachments || [];
-          
-          // If no attachments array, check if the message itself is a location
-          if (attachments.length === 0 && event.message.type === 'location') {
-            // Messenger sometimes sends location as the message type itself
-            attachments = [{
-              type: 'location',
-              payload: {
-                coordinates: {
-                  lat: event.message.coordinates?.lat,
-                  long: event.message.coordinates?.long,
-                }
-              }
-            }];
-          }
-          
+          const attachments = event.message.attachments || [];
           handleMessage(event.sender.id, text, payload, attachments);
         }
       });
