@@ -213,9 +213,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
           tempData.report_description = text;
           tempData.report_image = uploadedUrl;
           await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-          return sendQuickReplies(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use Messenger\'s paperclip (📎) → Location', [
-            { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
-          ]);
+          return sendMessage(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use the paperclip (📎) to share your GPS location\n• Or type SKIP to continue without location');
         }
         tempData.pending_image = uploadedUrl;
         await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
@@ -229,9 +227,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       tempData.report_description = text;
       tempData.report_image = imageUrl;
       await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-      return sendQuickReplies(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use Messenger\'s paperclip (📎) → Location', [
-        { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
-      ]);
+      return sendMessage(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use the paperclip (📎) to share your GPS location\n• Or type SKIP to continue without location');
     }
 
     return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
@@ -242,7 +238,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     let latitude = null;
     let longitude = null;
 
-    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP') {
+    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP' || text.toUpperCase() === 'SKIP') {
       await db.query(
         'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
         [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null]
