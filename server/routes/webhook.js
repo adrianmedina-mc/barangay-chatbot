@@ -194,6 +194,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   // Report location — user shares GPS or skips
   if (state === 'report_location') {
+    console.log('📍 LOCATION STATE - attachments:', JSON.stringify(attachments));
     let latitude = null;
     let longitude = null;
 
