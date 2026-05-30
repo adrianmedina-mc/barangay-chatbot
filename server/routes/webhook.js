@@ -198,7 +198,8 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   }
 
   // Report description with photo support
-  if (state === 'report_description') {
+  // Report description with photo support
+if (state === 'report_description') {
     let imageUrl = null;
 
     if (tempData.pending_image) {
@@ -210,72 +211,51 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       const uploadedUrl = await uploadImage(attachments[0].payload.url);
       if (uploadedUrl) {
         if (text && text.length >= 10) {
-          tempData.report_description = text;
-          tempData.report_image = uploadedUrl;
-          await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-          return sendMessage(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use the paperclip (📎) to share your GPS location\n• Or type SKIP to continue without location');
+          // Save with photo + description
+          await db.query(
+            'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
+            [resident.id, tempData.report_category, text, uploadedUrl]
+          );
+          await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
+          const idRes = await db.query('SELECT lastval() as id');
+          return sendQuickReplies(senderId, 
+            `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}\n📷 Photo attached\n\nBarangay staff will review this.`,
+            [
+              { title: '📝 New Report', payload: 'MENU_REPORT' },
+              { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+              { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+            ]
+          );
         }
         tempData.pending_image = uploadedUrl;
         await db.query("UPDATE residents SET temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-        return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (at least 10 characters):');
+        return sendMessage(senderId, '✅ Photo received! Please describe what this photo is about (include the location if possible, at least 10 characters):');
       } else {
         return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
       }
     }
 
     if (text && text.length >= 10) {
-      tempData.report_description = text;
-      tempData.report_image = imageUrl;
-      await db.query("UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2", [JSON.stringify(tempData), senderId]);
-      return sendMessage(senderId, '📍 Where is this issue located?\n\nYou can:\n• Type the location (e.g., "Near the basketball court")\n• Or use the paperclip (📎) to share your GPS location\n• Or type SKIP to continue without location');
-    }
-
-    return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
-  }
-
-  // Report location
-  if (state === 'report_location') {
-    let latitude = null;
-    let longitude = null;
-
-    if (text === 'LOCATION_SKIP' || quickReplyPayload === 'LOCATION_SKIP' || text.toUpperCase() === 'SKIP') {
+      // Save with description
       await db.query(
         'INSERT INTO reports (resident_id, category, description, image_url) VALUES ($1, $2, $3, $4)',
-        [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null]
+        [resident.id, tempData.report_category, text, imageUrl]
       );
       await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
       const idRes = await db.query('SELECT lastval() as id');
-      return sendQuickReplies(senderId, `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}\n\nBarangay staff will review this.`, [
+      
+      let reply = `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
+      if (imageUrl) reply += '\n📷 Photo attached';
+      reply += '\n\nBarangay staff will review this.';
+      
+      return sendQuickReplies(senderId, reply, [
         { title: '📝 New Report', payload: 'MENU_REPORT' },
         { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
         { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
       ]);
     }
 
-    if (attachments && attachments.length > 0 && attachments[0].type === 'location') {
-      latitude = attachments[0].payload.coordinates.lat;
-      longitude = attachments[0].payload.coordinates.long;
-    }
-
-    await db.query(
-      'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-      [resident.id, tempData.report_category, tempData.report_description, tempData.report_image || null, latitude, longitude]
-    );
-    await db.query("UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1", [senderId]);
-    
-    const idRes = await db.query('SELECT lastval() as id');
-    const reportId = idRes.rows[0].id;
-    
-    let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${tempData.report_description}`;
-    if (tempData.report_image) reply += '\n📷 Photo attached';
-    if (latitude) reply += '\n📍 GPS location shared';
-    reply += '\n\nBarangay staff will review this.';
-    
-    return sendQuickReplies(senderId, reply, [
-      { title: '📝 New Report', payload: 'MENU_REPORT' },
-      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-    ]);
+    return sendMessage(senderId, 'Please provide more detail (at least 10 characters, include the location) or send a photo of the issue.');
   }
 
   // Fallback
