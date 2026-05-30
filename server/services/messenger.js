@@ -107,23 +107,27 @@ async function deletePersistentMenu() {
   }
 }
 
-async function setGreeting() {
+async function setIceBreakers() {
   try {
     await axios.post(
       `https://graph.facebook.com/v18.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}`,
       {
-        greeting: [
+        ice_breakers: [
           {
-            locale: 'default',
-            text: 'Welcome to Barangay Dos ChatBot! 👋 Tap Get Started to begin.',
+            question: '👋 Get Started',
+            payload: 'GET_STARTED',
+          },
+          {
+            question: 'ℹ️ About this Bot',
+            payload: 'MENU_FAQ',
           },
         ],
       }
     );
-    console.log('Greeting set');
+    console.log('Ice breakers set');
   } catch (error) {
-    console.error('Error setting greeting:', error.response?.data || error.message);
+    console.error('Error setting ice breakers:', error.response?.data || error.message);
   }
 }
 
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu, setGreeting };
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu, setIceBreakers };
