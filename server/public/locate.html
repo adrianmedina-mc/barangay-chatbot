@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Share Location — Barangay Dos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 32px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  .pin {
+    font-size: 56px;
+    margin-bottom: 20px;
+    display: block;
+    animation: bounce 1.6s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-8px); }
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 32px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 16px 24px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: #1877f2;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(24,119,242,0.35);
+  }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(24,119,242,0.45); }
+
+  /* States */
+  #state-idle    { display: block; }
+  #state-loading { display: none; }
+  #state-success { display: none; }
+  #state-error   { display: none; }
+
+  /* Loading spinner */
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e0e7ff;
+    border-top-color: #1877f2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 16px;
+    color: #444;
+    font-weight: 500;
+  }
+
+  /* Success */
+  .checkmark {
+    font-size: 56px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .coords-box {
+    background: #f0f7ff;
+    border: 1px solid #bdd7fb;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    color: #1877f2;
+    margin: 16px 0 24px;
+  }
+
+  /* Error */
+  .error-icon  { font-size: 48px; margin-bottom: 16px; display: block; }
+  .error-msg   { font-size: 14px; color: #d32f2f; line-height: 1.5; margin-bottom: 24px; }
+  .btn-retry   { background: #f5f5f5; color: #333; }
+  .btn-retry:hover:not(:disabled) { background: #ebebeb; }
+
+  .back-link {
+    display: block;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #888;
+    text-decoration: none;
+  }
+  .back-link:hover { color: #1877f2; }
+
+  .barangay-label {
+    font-size: 12px;
+    color: #bbb;
+    margin-top: 28px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- STATE: Idle (initial prompt) -->
+<div class="card" id="state-idle">
+  <span class="pin">📍</span>
+  <h1>Share Your Location</h1>
+  <p class="subtitle">Help barangay staff find the issue faster by sharing the exact location.</p>
+  <button class="btn btn-primary" onclick="requestLocation()">
+    <span>📡</span> Share My Location
+  </button>
+  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+</div>
+
+<!-- STATE: Loading -->
+<div class="card" id="state-loading">
+  <div class="spinner"></div>
+  <p class="loading-text">Getting your location…</p>
+  <p class="subtitle" style="margin-top:8px;font-size:13px;">Please allow location access if your browser asks.</p>
+</div>
+
+<!-- STATE: Success -->
+<div class="card" id="state-success">
+  <span class="checkmark">✅</span>
+  <h1>Location Shared!</h1>
+  <p class="subtitle">Your location has been sent to the chatbot.</p>
+  <div class="coords-box" id="coords-display"></div>
+  <p class="subtitle" style="margin-bottom:0">Go back to Messenger to continue your report.</p>
+  <a href="https://m.me/BarangayDosChatBot" class="back-link">← Back to Messenger</a>
+  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+</div>
+
+<!-- STATE: Error -->
+<div class="card" id="state-error">
+  <span class="error-icon">⚠️</span>
+  <h1>Location Unavailable</h1>
+  <p class="error-msg" id="error-text">Could not get your location.</p>
+  <button class="btn btn-retry" onclick="retry()">Try Again</button>
+  <a href="https://m.me/BarangayDosChatBot" class="back-link">← Skip & go back to Messenger</a>
+  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+</div>
+
+<script>
+  // Read senderId from URL query param: /locate?sid=SENDER_ID
+  const params = new URLSearchParams(window.location.search);
+  const senderId = params.get('sid');
+
+  function showState(name) {
+    ['idle','loading','success','error'].forEach(s => {
+      document.getElementById('state-' + s).style.display = s === name ? 'block' : 'none';
+    });
+  }
+
+  function requestLocation() {
+    if (!senderId) {
+      showError('Missing session ID. Please tap the location link from Messenger again.');
+      return;
+    }
+    if (!navigator.geolocation) {
+      showError('Your browser does not support location sharing. Please try a different browser.');
+      return;
+    }
+    showState('loading');
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+    });
+  }
+
+  async function onSuccess(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    document.getElementById('coords-display').textContent =
+      lat.toFixed(6) + ', ' + lng.toFixed(6);
+
+    try {
+      const res = await fetch('/locate/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderId, lat, lng }),
+      });
+      if (!res.ok) throw new Error('Server error: ' + res.status);
+      showState('success');
+    } catch (err) {
+      showError('Location was found but could not be sent to the server. Please try again.\n\n(' + err.message + ')');
+    }
+  }
+
+  function onError(err) {
+    const messages = {
+      1: 'Location access was denied. Please allow location permission in your browser settings and try again.',
+      2: 'Your location could not be determined. Make sure GPS/Location is turned on.',
+      3: 'Location request timed out. Please check your connection and try again.',
+    };
+    showError(messages[err.code] || 'An unknown error occurred.');
+  }
+
+  function showError(msg) {
+    document.getElementById('error-text').textContent = msg;
+    showState('error');
+  }
+
+  function retry() {
+    showState('idle');
+  }
+</script>
+</body>
+</html>

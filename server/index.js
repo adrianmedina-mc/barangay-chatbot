@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const reportRoutes = require('./routes/reports');
 const residentRoutes = require('./routes/residents');
 const announcementRoutes = require('./routes/announcements');
+const locateRoutes = require('./routes/locate');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/residents', residentRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/locate', locateRoutes);
+app.use(express.static('public'));
 
 // Health check
 app.get('/api/health', (req, res) => {

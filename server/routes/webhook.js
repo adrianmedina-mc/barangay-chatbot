@@ -1,21 +1,23 @@
 const express = require('express');
-const router = express.Router();
-const db = require('../db/init');
-const { sendMessage, sendQuickReplies } = require('../services/messenger');
+const router  = express.Router();
+const db      = require('../db/init');
+const { sendMessage, sendQuickReplies, sendLocationRequest } = require('../services/messenger');
 const { uploadImage } = require('../services/upload');
-const { parseLocation } = require('../services/locationParser'); // <-- new utility
 
-const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
+const VERIFY_TOKEN      = process.env.MESSENGER_VERIFY_TOKEN;
+const LOCATION_PAGE_URL = process.env.LOCATION_PAGE_URL; // e.g. "https://yourserver.com"
+
+// ── WEBHOOK VERIFICATION ──────────────────────────────────────────────────
 
 router.get('/', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  }
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) return res.status(200).send(challenge);
   return res.sendStatus(403);
 });
+
+// ── WEBHOOK RECEIVER ─────────────────────────────────────────────────────
 
 router.post('/', (req, res) => {
   const body = req.body;
@@ -25,8 +27,8 @@ router.post('/', (req, res) => {
         if (event.postback) {
           handleMessage(event.sender.id, event.postback.payload);
         } else if (event.message) {
-          const text = event.message.text || '';
-          const payload = event.message.quick_reply?.payload || '';
+          const text        = event.message.text || '';
+          const payload     = event.message.quick_reply?.payload || '';
           const attachments = event.message.attachments || [];
           handleMessage(event.sender.id, text, payload, attachments);
         }
@@ -37,13 +39,14 @@ router.post('/', (req, res) => {
   return res.sendStatus(404);
 });
 
+// ── MAIN HANDLER ─────────────────────────────────────────────────────────
+
 async function handleMessage(senderId, messageText, quickReplyPayload, attachments) {
-  const text = (quickReplyPayload || messageText || '').trim();
+  const text      = (quickReplyPayload || messageText || '').trim();
   const upperText = text.toUpperCase();
 
-  if (upperText === 'HELP' || upperText === 'MENU' || upperText === 'RESTART') {
-    return showMainMenu(senderId);
-  }
+  // ── Global commands ──
+  if (['HELP', 'MENU', 'RESTART'].includes(upperText)) return showMainMenu(senderId);
 
   if (upperText === 'CANCEL') {
     await db.query(
@@ -54,7 +57,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   }
 
   if (text === 'GET_STARTED') return showMainMenu(senderId);
-  if (text === 'MENU_FAQ') return showFAQ(senderId);
+  if (text === 'MENU_FAQ')    return showFAQ(senderId);
 
   if (text === 'MENU_REPORT') {
     await db.query(
@@ -72,8 +75,9 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   if (text === 'MENU_MY_REPORTS') {
     const residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
-    const resident = residentRes.rows[0];
+    const resident    = residentRes.rows[0];
     if (!resident) return sendMessage(senderId, 'Please complete registration first. Type HELP.');
+
     const reportsRes = await db.query(
       'SELECT * FROM reports WHERE resident_id = $1 ORDER BY created_at DESC LIMIT 5',
       [resident.id]
@@ -87,19 +91,18 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     let reply = '📋 Your recent reports:\n\n';
     reportsRes.rows.forEach((r) => {
       const statusEmoji = r.status === 'pending' ? '🟡' : r.status === 'in_progress' ? '🔵' : '🟢';
-      const pinTag = r.latitude ? ' 📍' : '';
+      const pinTag      = r.latitude ? ' 📍' : '';
       reply += `${statusEmoji} #${r.id} - ${r.category}${pinTag}\n   ${r.status}\n   ${new Date(r.created_at).toLocaleDateString()}\n\n`;
     });
     return sendQuickReplies(senderId, reply, [
-      { title: '📝 New Report',  payload: 'MENU_REPORT' },
-      { title: '🏠 Main Menu',  payload: 'MENU_FAQ' },
+      { title: '📝 New Report', payload: 'MENU_REPORT' },
+      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
     ]);
   }
 
-  // ─── LOAD RESIDENT ───
-
+  // ── Load resident ──
   let residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
-  let resident = residentRes.rows[0];
+  let resident    = residentRes.rows[0];
 
   if (!resident) {
     await db.query(
@@ -116,10 +119,10 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     );
   }
 
-  const state = resident.conversation_state;
-  let tempData = JSON.parse(resident.temp_data || '{}');
+  const state    = resident.conversation_state;
+  let   tempData = JSON.parse(resident.temp_data || '{}');
 
-  // ─── REGISTRATION FLOW ───
+  // ── REGISTRATION FLOW ────────────────────────────────────────────────────
 
   if (state === 'registration_resident') {
     const choice = quickReplyPayload || text;
@@ -139,8 +142,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       return sendMessage(
         senderId,
         '📢 Thank you for your interest!\n\nThe chatbot features are exclusive to Barangay 2, Daet Camarines Norte residents only. ' +
-        'However, if you have a concern or report, you may type it here and a barangay staff member may review it.\n\n' +
-        'Type your message below or type MENU to start over.'
+        'However, if you have a concern, you may type it here and a staff member may review it.\n\nType MENU to start over.'
       );
     }
     return sendQuickReplies(senderId, 'Please select an option:', [
@@ -159,7 +161,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
         "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
         [senderId]
       );
-      return sendMessage(senderId, '✅ Your message has been received. A barangay staff member may review it. Thank you!');
+      return sendMessage(senderId, '✅ Your message has been received. Thank you!');
     }
     return sendMessage(senderId, 'Please provide more detail (at least 5 characters) or type MENU to exit.');
   }
@@ -203,14 +205,13 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(
       senderId,
       '✅ Registration complete!\n\nYour account is pending approval from the barangay admin. ' +
-      'Once approved, you will have full access to all features including announcements.\n\n' +
-      'You can still submit reports while waiting for approval.\n\nType MENU to get started.'
+      'You can still submit reports while waiting.\n\nType MENU to get started.'
     );
   }
 
   if (state === 'idle') return showMainMenu(senderId, resident.first_name);
 
-  // ─── REPORT FLOW ───
+  // ── REPORT FLOW ──────────────────────────────────────────────────────────
 
   if (state === 'report_category') {
     const categoryMap = {
@@ -221,25 +222,18 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       CAT_OTHER:      'Other',
     };
     if (categoryMap[text]) {
-      tempData.report_category = categoryMap[text];
-      await db.query(
-        "UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2",
-        [JSON.stringify(tempData), senderId]
-      );
-      // ── Prompt for location ──
-      return sendQuickReplies(
-        senderId,
-        `Category: *${categoryMap[text]}*\n\n` +
-        `📍 *Share the location of the issue* (optional but helpful!)\n\n` +
-        `How to share:\n` +
-        `1. Open Google Maps 🗺️\n` +
-        `2. Long-press the exact spot\n` +
-        `3. Tap "Share" → "Copy link"\n` +
-        `4. Paste the link here\n\n` +
-        `You can also just type the coordinates (e.g. 14.1234, 122.5678).`,
-        [{ title: '⏭️ Skip', payload: 'LOCATION_SKIP' }]
-      );
-    }
+    tempData.report_category = categoryMap[text];
+    await db.query(
+      "UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2",
+      [JSON.stringify(tempData), senderId]
+    );
+    // Send the button template that opens the location page
+    await sendLocationRequest(senderId, LOCATION_PAGE_URL);
+    // Also send a Skip button in chat
+    return sendQuickReplies(senderId, 'Tap the button above to share your location, or tap Skip to continue without it.', [
+      { title: '⏭️ Skip', payload: 'LOCATION_SKIP' },
+    ]);
+  }
     return sendQuickReplies(senderId, 'Please select a category:', [
       { title: '🏗️ Infrastructure', payload: 'CAT_INFRA' },
       { title: '🚨 Safety',         payload: 'CAT_SAFETY' },
@@ -249,11 +243,11 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     ]);
   }
 
-  // ─── LOCATION STATE ───
+  // ── LOCATION STATE ───────────────────────────────────────────────────────
+  // Coordinates are injected server-side via POST /locate/submit (not through chat).
+  // The only user message expected here is LOCATION_SKIP.
 
   if (state === 'report_location') {
-
-    // User tapped Skip
     if (text === 'LOCATION_SKIP') {
       await db.query(
         "UPDATE residents SET conversation_state = 'report_description', temp_data = $1 WHERE messenger_id = $2",
@@ -264,39 +258,14 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
         'No problem! Please describe the issue (at least 10 characters). You can also send a photo:'
       );
     }
-
-    // Try to parse a Google Maps link or typed coordinates
-    const coords = await parseLocation(text);
-
-    if (coords) {
-      tempData.latitude  = coords.lat;
-      tempData.longitude = coords.lng;
-      await db.query(
-        "UPDATE residents SET conversation_state = 'report_description', temp_data = $1 WHERE messenger_id = $2",
-        [JSON.stringify(tempData), senderId]
-      );
-      return sendMessage(
-        senderId,
-        `✅ Location saved! 📍 (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})\n\n` +
-        `Now please describe the issue (at least 10 characters). You can also send a photo:`
-      );
-    }
-
-    // Could not parse — re-prompt with clearer instructions
-    return sendQuickReplies(
-      senderId,
-      `⚠️ I couldn't read that as a location.\n\n` +
-      `Please paste a Google Maps link, or type coordinates like:\n` +
-      `14.1234, 122.5678\n\n` +
-      `Or tap Skip to continue without a location.`,
-      [{ title: '⏭️ Skip', payload: 'LOCATION_SKIP' }]
-    );
+    // They sent a message while waiting — remind them
+    return sendLocationRequest(senderId, LOCATION_PAGE_URL);
   }
 
-  // ─── REPORT DESCRIPTION ───
+  // ── REPORT DESCRIPTION ───────────────────────────────────────────────────
 
   if (state === 'report_description') {
-    let imageUrl = tempData.pending_image || null;
+    const imageUrl = tempData.pending_image || null;
 
     if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
       await sendMessage(senderId, '📷 Processing your photo...');
@@ -312,11 +281,10 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
         ]);
         return sendMessage(
           senderId,
-          '✅ Photo received! Please describe what this photo is about (at least 10 characters, include the location if possible):'
+          '✅ Photo received! Please describe what this photo is about (at least 10 characters):'
         );
-      } else {
-        return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
       }
+      return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
     }
 
     if (text && text.length >= 10) {
@@ -327,7 +295,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
   }
 
-  // ─── FALLBACK ───
+  // ── FALLBACK ─────────────────────────────────────────────────────────────
 
   return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
     { title: '📝 Submit Report', payload: 'MENU_REPORT' },
@@ -336,19 +304,12 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   ]);
 }
 
-// ─── HELPERS ───
+// ── SHARED HELPERS ───────────────────────────────────────────────────────────
 
 async function saveReport(residentId, tempData, description, imageUrl, senderId) {
   await db.query(
     'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-    [
-      residentId,
-      tempData.report_category,
-      description,
-      imageUrl || null,
-      tempData.latitude  || null,
-      tempData.longitude || null,
-    ]
+    [residentId, tempData.report_category, description, imageUrl || null, tempData.latitude || null, tempData.longitude || null]
   );
   await db.query(
     "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
@@ -357,12 +318,12 @@ async function saveReport(residentId, tempData, description, imageUrl, senderId)
 }
 
 async function sendReportConfirmation(senderId, tempData, description, imageUrl) {
-  const idRes = await db.query('SELECT lastval() as id');
+  const idRes    = await db.query('SELECT lastval() as id');
   const reportId = idRes.rows[0].id;
 
   let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${description}`;
-  if (imageUrl)         reply += '\n📷 Photo attached';
-  if (tempData.latitude) reply += `\n📍 Location: ${tempData.latitude.toFixed(5)}, ${tempData.longitude.toFixed(5)}`;
+  if (imageUrl)          reply += '\n📷 Photo attached';
+  if (tempData.latitude) reply += `\n📍 Location pinned`;
   reply += '\n\nBarangay staff will review this.';
 
   return sendQuickReplies(senderId, reply, [
@@ -380,20 +341,13 @@ async function showMainMenu(senderId, firstName) {
       { title: '❓ FAQs',          payload: 'MENU_FAQ' },
     ]);
   }
-
   const r = result.rows[0];
-
   if (r.is_resident === false) {
-    return sendQuickReplies(
-      senderId,
-      'You are registered as a non-resident. You can submit reports or leave a message for the barangay.',
-      [
-        { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-        { title: '❓ FAQs',          payload: 'MENU_FAQ' },
-      ]
-    );
+    return sendQuickReplies(senderId, 'You are registered as a non-resident. You can submit reports or leave a message.', [
+      { title: '📝 Submit Report', payload: 'MENU_REPORT' },
+      { title: '❓ FAQs',          payload: 'MENU_FAQ' },
+    ]);
   }
-
   if (!r.approved) {
     return sendQuickReplies(
       senderId,
@@ -411,7 +365,6 @@ async function showMainMenu(senderId, firstName) {
     [r.id]
   );
   const totalCount = await db.query('SELECT COUNT(*) as count FROM reports WHERE resident_id = $1', [r.id]);
-
   const openReports  = parseInt(pendingCount.rows[0].count);
   const hasSubmitted = parseInt(totalCount.rows[0].count) > 0;
   const name         = firstName || r.first_name || 'resident';

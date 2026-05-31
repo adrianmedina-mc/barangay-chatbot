@@ -43,13 +43,47 @@ async function broadcastToResidents(residentIds, messageText) {
     try {
       await sendMessage(id, messageText);
       sent++;
-      // Small delay to avoid rate limiting
       await new Promise((r) => setTimeout(r, 300));
     } catch (error) {
       console.error(`Failed to send to ${id}:`, error.message);
     }
   }
   return sent;
+}
+
+async function sendLocationRequest(recipientId, locationPageBaseUrl) {
+  const url = `${locationPageBaseUrl}/locate?sid=${encodeURIComponent(recipientId)}`;
+
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+      {
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: 'template',
+            payload: {
+              template_type: 'button',
+              text:
+                '📍 Share the location of the issue (optional but very helpful for staff).\n\n' +
+                'Tap the button below — your browser will ask for location permission, then send it automatically.',
+              buttons: [
+                {
+                  type: 'web_url',
+                  url,
+                  title: '📍 Share My Location',
+                  webview_height_ratio: 'compact',
+                  messenger_extensions: false,
+                },
+              ],
+            },
+          },
+        },
+      }
+    );
+  } catch (error) {
+    console.error('sendLocationRequest failed:', error.response?.data || error.message);
+  }
 }
 
 async function setMessengerProfile() {
@@ -130,4 +164,4 @@ async function setIceBreakers() {
   }
 }
 
-module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, deletePersistentMenu, setIceBreakers };
+module.exports = { sendMessage, sendQuickReplies, broadcastToResidents, sendLocationRequest, deletePersistentMenu, setIceBreakers };
