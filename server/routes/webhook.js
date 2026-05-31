@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db/init');
 const { sendMessage, sendQuickReplies } = require('../services/messenger');
 const { uploadImage } = require('../services/upload');
+const { parseLocation } = require('../services/locationParser'); // <-- new utility
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
 
@@ -52,9 +53,8 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     return sendMessage(senderId, 'Cancelled! What would you like to do?');
   }
 
-  if (text === 'GET_STARTED') {
-    return showMainMenu(senderId);
-  }
+  if (text === 'GET_STARTED') return showMainMenu(senderId);
+  if (text === 'MENU_FAQ') return showFAQ(senderId);
 
   if (text === 'MENU_REPORT') {
     await db.query(
@@ -63,14 +63,12 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     );
     return sendQuickReplies(senderId, 'What type of issue are you reporting?', [
       { title: '🏗️ Infrastructure', payload: 'CAT_INFRA' },
-      { title: '🚨 Safety', payload: 'CAT_SAFETY' },
-      { title: '🧹 Sanitation', payload: 'CAT_SANITATION' },
-      { title: '🔊 Noise', payload: 'CAT_NOISE' },
-      { title: '📌 Other', payload: 'CAT_OTHER' },
+      { title: '🚨 Safety',         payload: 'CAT_SAFETY' },
+      { title: '🧹 Sanitation',     payload: 'CAT_SANITATION' },
+      { title: '🔊 Noise',          payload: 'CAT_NOISE' },
+      { title: '📌 Other',          payload: 'CAT_OTHER' },
     ]);
   }
-
-  if (text === 'MENU_FAQ') return showFAQ(senderId);
 
   if (text === 'MENU_MY_REPORTS') {
     const residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
@@ -83,20 +81,22 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     if (reportsRes.rows.length === 0) {
       return sendQuickReplies(senderId, 'You have no reports.', [
         { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+        { title: '🏠 Main Menu',    payload: 'MENU_FAQ' },
       ]);
     }
     let reply = '📋 Your recent reports:\n\n';
     reportsRes.rows.forEach((r) => {
-      const emoji = r.status === 'pending' ? '🟡' : r.status === 'in_progress' ? '🔵' : '🟢';
-      const hasPin = r.latitude ? ' 📍' : '';
-      reply += `${emoji} #${r.id} - ${r.category}${hasPin}\n   ${r.status}\n   ${new Date(r.created_at).toLocaleDateString()}\n\n`;
+      const statusEmoji = r.status === 'pending' ? '🟡' : r.status === 'in_progress' ? '🔵' : '🟢';
+      const pinTag = r.latitude ? ' 📍' : '';
+      reply += `${statusEmoji} #${r.id} - ${r.category}${pinTag}\n   ${r.status}\n   ${new Date(r.created_at).toLocaleDateString()}\n\n`;
     });
     return sendQuickReplies(senderId, reply, [
-      { title: '📝 New Report', payload: 'MENU_REPORT' },
-      { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
+      { title: '📝 New Report',  payload: 'MENU_REPORT' },
+      { title: '🏠 Main Menu',  payload: 'MENU_FAQ' },
     ]);
   }
+
+  // ─── LOAD RESIDENT ───
 
   let residentRes = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
   let resident = residentRes.rows[0];
@@ -111,7 +111,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       '👋 Welcome to Barangay Dos ChatBot!\n\nThis service is exclusive for residents of Barangay 2, Daet Camarines Norte.\n\nAre you a resident?',
       [
         { title: '✅ Yes, I am a resident', payload: 'RESIDENT_YES' },
-        { title: '❌ No', payload: 'RESIDENT_NO' },
+        { title: '❌ No',                   payload: 'RESIDENT_NO' },
       ]
     );
   }
@@ -123,7 +123,7 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
 
   if (state === 'registration_resident') {
     const choice = quickReplyPayload || text;
-    if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a reside') || text === '✅ Yes, I am a reside...') {
+    if (choice === 'RESIDENT_YES' || text.includes('Yes, I am a reside')) {
       tempData.is_resident = true;
       await db.query(
         "UPDATE residents SET is_resident = true, conversation_state = 'registration_name', temp_data = $1 WHERE messenger_id = $2",
@@ -138,15 +138,14 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
       );
       return sendMessage(
         senderId,
-        '📢 Thank you for your interest!\n\n' +
-          'The chatbot features are exclusive to Barangay 2, Daet Camarines Norte residents only. ' +
-          'However, if you have a concern or report, you may type it here and a barangay staff member may review it.\n\n' +
-          'Type your message below or type MENU to start over.'
+        '📢 Thank you for your interest!\n\nThe chatbot features are exclusive to Barangay 2, Daet Camarines Norte residents only. ' +
+        'However, if you have a concern or report, you may type it here and a barangay staff member may review it.\n\n' +
+        'Type your message below or type MENU to start over.'
       );
     }
     return sendQuickReplies(senderId, 'Please select an option:', [
       { title: '✅ Yes, I am a resident', payload: 'RESIDENT_YES' },
-      { title: '❌ No', payload: 'RESIDENT_NO' },
+      { title: '❌ No',                   payload: 'RESIDENT_NO' },
     ]);
   }
 
@@ -203,11 +202,9 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     );
     return sendMessage(
       senderId,
-      '✅ Registration complete!\n\n' +
-        'Your account is pending approval from the barangay admin. ' +
-        'Once approved, you will have full access to all features including announcements.\n\n' +
-        'You can still submit reports while waiting for approval.\n\n' +
-        'Type MENU to get started.'
+      '✅ Registration complete!\n\nYour account is pending approval from the barangay admin. ' +
+      'Once approved, you will have full access to all features including announcements.\n\n' +
+      'You can still submit reports while waiting for approval.\n\nType MENU to get started.'
     );
   }
 
@@ -216,159 +213,106 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
   // ─── REPORT FLOW ───
 
   if (state === 'report_category') {
-    const map = {
-      CAT_INFRA: 'Infrastructure',
-      CAT_SAFETY: 'Safety',
+    const categoryMap = {
+      CAT_INFRA:      'Infrastructure',
+      CAT_SAFETY:     'Safety',
       CAT_SANITATION: 'Sanitation',
-      CAT_NOISE: 'Noise',
-      CAT_OTHER: 'Other',
+      CAT_NOISE:      'Noise',
+      CAT_OTHER:      'Other',
     };
-    if (map[text]) {
-      tempData.report_category = map[text];
+    if (categoryMap[text]) {
+      tempData.report_category = categoryMap[text];
       await db.query(
         "UPDATE residents SET conversation_state = 'report_location', temp_data = $1 WHERE messenger_id = $2",
         [JSON.stringify(tempData), senderId]
       );
-      // Ask for location before description
+      // ── Prompt for location ──
       return sendQuickReplies(
         senderId,
-        `Category: ${map[text]}\n\n📍 Can you share the location of this issue?\n\nTap the 📎 attachment icon → Location to share your current location, or tap Skip.`,
-        [{ title: '⏭️ Skip location', payload: 'LOCATION_SKIP' }]
+        `Category: *${categoryMap[text]}*\n\n` +
+        `📍 *Share the location of the issue* (optional but helpful!)\n\n` +
+        `How to share:\n` +
+        `1. Open Google Maps 🗺️\n` +
+        `2. Long-press the exact spot\n` +
+        `3. Tap "Share" → "Copy link"\n` +
+        `4. Paste the link here\n\n` +
+        `You can also just type the coordinates (e.g. 14.1234, 122.5678).`,
+        [{ title: '⏭️ Skip', payload: 'LOCATION_SKIP' }]
       );
     }
-    return sendQuickReplies(senderId, 'Select a category:', [
+    return sendQuickReplies(senderId, 'Please select a category:', [
       { title: '🏗️ Infrastructure', payload: 'CAT_INFRA' },
-      { title: '🚨 Safety', payload: 'CAT_SAFETY' },
-      { title: '🧹 Sanitation', payload: 'CAT_SANITATION' },
-      { title: '🔊 Noise', payload: 'CAT_NOISE' },
-      { title: '📌 Other', payload: 'CAT_OTHER' },
+      { title: '🚨 Safety',         payload: 'CAT_SAFETY' },
+      { title: '🧹 Sanitation',     payload: 'CAT_SANITATION' },
+      { title: '🔊 Noise',          payload: 'CAT_NOISE' },
+      { title: '📌 Other',          payload: 'CAT_OTHER' },
     ]);
   }
 
   // ─── LOCATION STATE ───
-  // Messenger sends location as an attachment with type 'location'
-  // containing payload.coordinates = { lat, long }
 
   if (state === 'report_location') {
-    // Check for location attachment
-    const locationAttachment = attachments && attachments.find((a) => a.type === 'location');
 
-    if (locationAttachment) {
-      const { lat, long } = locationAttachment.payload.coordinates;
-      tempData.latitude = lat;
-      tempData.longitude = long;
+    // User tapped Skip
+    if (text === 'LOCATION_SKIP') {
       await db.query(
         "UPDATE residents SET conversation_state = 'report_description', temp_data = $1 WHERE messenger_id = $2",
         [JSON.stringify(tempData), senderId]
       );
       return sendMessage(
         senderId,
-        '✅ Location received! 📍\n\nNow please describe the issue (at least 10 characters, include any extra location details if needed). You can also send a photo:'
+        'No problem! Please describe the issue (at least 10 characters). You can also send a photo:'
       );
     }
 
-    // User tapped Skip or sent text instead of a location
-    if (text === 'LOCATION_SKIP' || text.length > 0) {
-      // If they typed something substantial, treat it as the description directly
-      if (text !== 'LOCATION_SKIP' && text.length >= 10) {
-        // No location, jump straight to saving with the description
-        await db.query(
-          'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-          [resident.id, tempData.report_category, text, null, null, null]
-        );
-        await db.query(
-          "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
-          [senderId]
-        );
-        const idRes = await db.query('SELECT lastval() as id');
-        return sendQuickReplies(
-          senderId,
-          `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}\n\nBarangay staff will review this.`,
-          [
-            { title: '📝 New Report', payload: 'MENU_REPORT' },
-            { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-            { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-          ]
-        );
-      }
+    // Try to parse a Google Maps link or typed coordinates
+    const coords = await parseLocation(text);
 
-      // Skipped — move to description step without coordinates
+    if (coords) {
+      tempData.latitude  = coords.lat;
+      tempData.longitude = coords.lng;
       await db.query(
         "UPDATE residents SET conversation_state = 'report_description', temp_data = $1 WHERE messenger_id = $2",
         [JSON.stringify(tempData), senderId]
       );
       return sendMessage(
         senderId,
-        'No problem! Please describe the issue (at least 10 characters, include the location in your description if possible). You can also send a photo:'
+        `✅ Location saved! 📍 (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})\n\n` +
+        `Now please describe the issue (at least 10 characters). You can also send a photo:`
       );
     }
 
-    // They sent something we can't handle — re-prompt
+    // Could not parse — re-prompt with clearer instructions
     return sendQuickReplies(
       senderId,
-      '📍 Please share your location using the 📎 attachment icon → Location, or tap Skip.',
-      [{ title: '⏭️ Skip location', payload: 'LOCATION_SKIP' }]
+      `⚠️ I couldn't read that as a location.\n\n` +
+      `Please paste a Google Maps link, or type coordinates like:\n` +
+      `14.1234, 122.5678\n\n` +
+      `Or tap Skip to continue without a location.`,
+      [{ title: '⏭️ Skip', payload: 'LOCATION_SKIP' }]
     );
   }
 
   // ─── REPORT DESCRIPTION ───
 
   if (state === 'report_description') {
-    let imageUrl = null;
-
-    if (tempData.pending_image) {
-      imageUrl = tempData.pending_image;
-    }
-
-    // Check for location attachment sent during description step (bonus: user shares location here)
-    const locationAttachmentInDesc = attachments && attachments.find((a) => a.type === 'location');
-    if (locationAttachmentInDesc && !tempData.latitude) {
-      const { lat, long } = locationAttachmentInDesc.payload.coordinates;
-      tempData.latitude = lat;
-      tempData.longitude = long;
-      await db.query('UPDATE residents SET temp_data = $1 WHERE messenger_id = $2', [
-        JSON.stringify(tempData),
-        senderId,
-      ]);
-      return sendMessage(
-        senderId,
-        '✅ Location saved! 📍 Now please describe the issue in text (at least 10 characters):'
-      );
-    }
+    let imageUrl = tempData.pending_image || null;
 
     if (attachments && attachments.length > 0 && attachments[0].type === 'image') {
       await sendMessage(senderId, '📷 Processing your photo...');
       const uploadedUrl = await uploadImage(attachments[0].payload.url);
       if (uploadedUrl) {
         if (text && text.length >= 10) {
-          await db.query(
-            'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-            [resident.id, tempData.report_category, text, uploadedUrl, tempData.latitude || null, tempData.longitude || null]
-          );
-          await db.query(
-            "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
-            [senderId]
-          );
-          const idRes = await db.query('SELECT lastval() as id');
-          const locationNote = tempData.latitude ? '\n📍 Location attached' : '';
-          return sendQuickReplies(
-            senderId,
-            `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}\n📷 Photo attached${locationNote}\n\nBarangay staff will review this.`,
-            [
-              { title: '📝 New Report', payload: 'MENU_REPORT' },
-              { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-              { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-            ]
-          );
+          await saveReport(resident.id, tempData, text, uploadedUrl, senderId);
+          return sendReportConfirmation(senderId, tempData, text, uploadedUrl);
         }
         tempData.pending_image = uploadedUrl;
         await db.query('UPDATE residents SET temp_data = $1 WHERE messenger_id = $2', [
-          JSON.stringify(tempData),
-          senderId,
+          JSON.stringify(tempData), senderId,
         ]);
         return sendMessage(
           senderId,
-          '✅ Photo received! Please describe what this photo is about (include the location if possible, at least 10 characters):'
+          '✅ Photo received! Please describe what this photo is about (at least 10 characters, include the location if possible):'
         );
       } else {
         return sendMessage(senderId, '⚠️ Could not process photo. Please try again or describe the issue in text.');
@@ -376,55 +320,68 @@ async function handleMessage(senderId, messageText, quickReplyPayload, attachmen
     }
 
     if (text && text.length >= 10) {
-      await db.query(
-        'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
-        [resident.id, tempData.report_category, text, imageUrl, tempData.latitude || null, tempData.longitude || null]
-      );
-      await db.query(
-        "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
-        [senderId]
-      );
-      const idRes = await db.query('SELECT lastval() as id');
-
-      let reply = `✅ Report #${idRes.rows[0].id} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${text}`;
-      if (imageUrl) reply += '\n📷 Photo attached';
-      if (tempData.latitude) reply += '\n📍 Location attached';
-      reply += '\n\nBarangay staff will review this.';
-
-      return sendQuickReplies(senderId, reply, [
-        { title: '📝 New Report', payload: 'MENU_REPORT' },
-        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-        { title: '🏠 Main Menu', payload: 'MENU_FAQ' },
-      ]);
+      await saveReport(resident.id, tempData, text, imageUrl, senderId);
+      return sendReportConfirmation(senderId, tempData, text, imageUrl);
     }
 
-    return sendMessage(
-      senderId,
-      'Please provide more detail (at least 10 characters, include the location) or send a photo of the issue.'
-    );
+    return sendMessage(senderId, 'Please provide more detail (at least 10 characters) or send a photo of the issue.');
   }
 
-  // Fallback
+  // ─── FALLBACK ───
+
   return sendQuickReplies(senderId, "I didn't understand. What would you like to do?", [
     { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-    { title: '❓ FAQs', payload: 'MENU_FAQ' },
-    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+    { title: '❓ FAQs',          payload: 'MENU_FAQ' },
+    { title: '📋 My Reports',   payload: 'MENU_MY_REPORTS' },
   ]);
 }
 
-// ─── HELPER FUNCTIONS ───
+// ─── HELPERS ───
+
+async function saveReport(residentId, tempData, description, imageUrl, senderId) {
+  await db.query(
+    'INSERT INTO reports (resident_id, category, description, image_url, latitude, longitude) VALUES ($1, $2, $3, $4, $5, $6)',
+    [
+      residentId,
+      tempData.report_category,
+      description,
+      imageUrl || null,
+      tempData.latitude  || null,
+      tempData.longitude || null,
+    ]
+  );
+  await db.query(
+    "UPDATE residents SET conversation_state = 'idle', temp_data = '{}' WHERE messenger_id = $1",
+    [senderId]
+  );
+}
+
+async function sendReportConfirmation(senderId, tempData, description, imageUrl) {
+  const idRes = await db.query('SELECT lastval() as id');
+  const reportId = idRes.rows[0].id;
+
+  let reply = `✅ Report #${reportId} submitted!\n\nCategory: ${tempData.report_category}\nDescription: ${description}`;
+  if (imageUrl)         reply += '\n📷 Photo attached';
+  if (tempData.latitude) reply += `\n📍 Location: ${tempData.latitude.toFixed(5)}, ${tempData.longitude.toFixed(5)}`;
+  reply += '\n\nBarangay staff will review this.';
+
+  return sendQuickReplies(senderId, reply, [
+    { title: '📝 New Report',  payload: 'MENU_REPORT' },
+    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+    { title: '🏠 Main Menu',  payload: 'MENU_FAQ' },
+  ]);
+}
 
 async function showMainMenu(senderId, firstName) {
-  const resident = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
-
-  if (!resident.rows.length) {
+  const result = await db.query('SELECT * FROM residents WHERE messenger_id = $1', [senderId]);
+  if (!result.rows.length) {
     return sendQuickReplies(senderId, 'Hello! What would you like to do?', [
       { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-      { title: '❓ FAQs', payload: 'MENU_FAQ' },
+      { title: '❓ FAQs',          payload: 'MENU_FAQ' },
     ]);
   }
 
-  const r = resident.rows[0];
+  const r = result.rows[0];
 
   if (r.is_resident === false) {
     return sendQuickReplies(
@@ -432,7 +389,7 @@ async function showMainMenu(senderId, firstName) {
       'You are registered as a non-resident. You can submit reports or leave a message for the barangay.',
       [
         { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-        { title: '❓ FAQs', payload: 'MENU_FAQ' },
+        { title: '❓ FAQs',          payload: 'MENU_FAQ' },
       ]
     );
   }
@@ -440,13 +397,11 @@ async function showMainMenu(senderId, firstName) {
   if (!r.approved) {
     return sendQuickReplies(
       senderId,
-      `Welcome, ${firstName || 'resident'}!\n\n` +
-        'Your account is pending approval. You can submit reports while waiting.\n\n' +
-        'What would you like to do?',
+      `Welcome, ${firstName || 'resident'}!\n\nYour account is pending approval. You can submit reports while waiting.\n\nWhat would you like to do?`,
       [
         { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-        { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-        { title: '❓ FAQs', payload: 'MENU_FAQ' },
+        { title: '📋 My Reports',   payload: 'MENU_MY_REPORTS' },
+        { title: '❓ FAQs',          payload: 'MENU_FAQ' },
       ]
     );
   }
@@ -457,9 +412,9 @@ async function showMainMenu(senderId, firstName) {
   );
   const totalCount = await db.query('SELECT COUNT(*) as count FROM reports WHERE resident_id = $1', [r.id]);
 
-  const openReports = parseInt(pendingCount.rows[0].count);
+  const openReports  = parseInt(pendingCount.rows[0].count);
   const hasSubmitted = parseInt(totalCount.rows[0].count) > 0;
-  const name = firstName || r.first_name || 'resident';
+  const name         = firstName || r.first_name || 'resident';
 
   let greeting;
   if (openReports > 0) {
@@ -472,18 +427,24 @@ async function showMainMenu(senderId, firstName) {
 
   return sendQuickReplies(senderId, greeting, [
     { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-    { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
-    { title: '❓ FAQs', payload: 'MENU_FAQ' },
+    { title: '📋 My Reports',   payload: 'MENU_MY_REPORTS' },
+    { title: '❓ FAQs',          payload: 'MENU_FAQ' },
   ]);
 }
 
 async function showFAQ(senderId) {
   return sendQuickReplies(
     senderId,
-    '❓ Frequently Asked Questions\n\n🕗 Office Hours: Mon-Fri, 8AM-5PM\n\n📄 Barangay Clearance: Bring ID + P50 fee\n\n🆔 Barangay ID: 2 IDs + proof of residency, P25\n\n🚔 Emergency: 0912-345-6789\n\n🗑️ Garbage: Tue & Fri, 6AM\n\n💊 Health Center: Mon-Fri, 8AM-4PM',
+    '❓ Frequently Asked Questions\n\n' +
+    '🕗 Office Hours: Mon-Fri, 8AM-5PM\n\n' +
+    '📄 Barangay Clearance: Bring ID + P50 fee\n\n' +
+    '🆔 Barangay ID: 2 IDs + proof of residency, P25\n\n' +
+    '🚔 Emergency: 0912-345-6789\n\n' +
+    '🗑️ Garbage: Tue & Fri, 6AM\n\n' +
+    '💊 Health Center: Mon-Fri, 8AM-4PM',
     [
       { title: '📝 Submit Report', payload: 'MENU_REPORT' },
-      { title: '📋 My Reports', payload: 'MENU_MY_REPORTS' },
+      { title: '📋 My Reports',   payload: 'MENU_MY_REPORTS' },
     ]
   );
 }
