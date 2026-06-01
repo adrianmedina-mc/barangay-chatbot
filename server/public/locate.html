@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Share Location — Barangay Dos</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #f0f4f8;
     min-height: 100vh;
     display: flex;
@@ -20,234 +20,279 @@
   .card {
     background: #fff;
     border-radius: 20px;
-    padding: 40px 32px;
+    padding: 40px 28px 32px;
     max-width: 360px;
     width: 100%;
     text-align: center;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.09);
   }
 
-  .pin {
-    font-size: 56px;
-    margin-bottom: 20px;
-    display: block;
-    animation: bounce 1.6s ease-in-out infinite;
+  .icon { font-size: 52px; display: block; margin-bottom: 18px; }
+  .bounce { animation: bounce 1.8s ease-in-out infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+
+  h1 { font-size: 21px; font-weight: 700; color: #1a1a2e; margin-bottom: 9px; }
+
+  p {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 24px;
   }
 
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-8px); }
+  .steps {
+    background: #f7f9fc;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    text-align: left;
   }
-
-  h1 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin-bottom: 10px;
+  .steps li {
+    font-size: 13px;
+    color: #444;
+    line-height: 1.7;
+    list-style: none;
+    padding-left: 4px;
   }
-
-  .subtitle {
-    font-size: 15px;
-    color: #666;
-    line-height: 1.5;
-    margin-bottom: 32px;
-  }
+  .steps li + li { margin-top: 4px; }
 
   .btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     width: 100%;
-    padding: 16px 24px;
-    border-radius: 14px;
-    font-size: 16px;
+    padding: 15px 20px;
+    border-radius: 13px;
+    font-size: 15px;
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    transition: opacity .15s, transform .15s;
+    text-decoration: none;
   }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn:active { opacity: .85; transform: scale(.98); }
 
   .btn-primary {
     background: #1877f2;
     color: #fff;
-    box-shadow: 0 4px 14px rgba(24,119,242,0.35);
+    box-shadow: 0 4px 14px rgba(24,119,242,.30);
   }
-  .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(24,119,242,0.45); }
+  .btn-secondary {
+    background: #f0f4f8;
+    color: #333;
+    margin-top: 10px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
-  /* States */
-  #state-idle    { display: block; }
-  #state-loading { display: none; }
-  #state-success { display: none; }
-  #state-error   { display: none; }
-
-  /* Loading spinner */
   .spinner {
-    width: 48px;
-    height: 48px;
+    width: 44px; height: 44px;
     border: 4px solid #e0e7ff;
     border-top-color: #1877f2;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 20px;
+    animation: spin .75s linear infinite;
+    margin: 0 auto 18px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .loading-text {
-    font-size: 16px;
-    color: #444;
-    font-weight: 500;
-  }
-
-  /* Success */
-  .checkmark {
-    font-size: 56px;
-    margin-bottom: 16px;
-    display: block;
-  }
-
   .coords-box {
     background: #f0f7ff;
-    border: 1px solid #bdd7fb;
+    border: 1px solid #b8d4fb;
     border-radius: 10px;
-    padding: 12px 16px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    padding: 10px 14px;
+    font-family: monospace;
     font-size: 13px;
     color: #1877f2;
-    margin: 16px 0 24px;
+    margin: 14px 0 22px;
   }
 
-  /* Error */
-  .error-icon  { font-size: 48px; margin-bottom: 16px; display: block; }
-  .error-msg   { font-size: 14px; color: #d32f2f; line-height: 1.5; margin-bottom: 24px; }
-  .btn-retry   { background: #f5f5f5; color: #333; }
-  .btn-retry:hover:not(:disabled) { background: #ebebeb; }
-
-  .back-link {
-    display: block;
-    margin-top: 20px;
-    font-size: 14px;
-    color: #888;
-    text-decoration: none;
+  .error-msg {
+    font-size: 13px;
+    color: #c62828;
+    background: #fff5f5;
+    border: 1px solid #ffcdd2;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
   }
-  .back-link:hover { color: #1877f2; }
 
-  .barangay-label {
-    font-size: 12px;
+  .label {
+    font-size: 11px;
     color: #bbb;
-    margin-top: 28px;
-    letter-spacing: 0.5px;
+    margin-top: 24px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
   }
+
+  /* hide all panels by default; JS shows the right one */
+  .panel { display: none; }
 </style>
 </head>
 <body>
 
-<!-- STATE: Idle (initial prompt) -->
-<div class="card" id="state-idle">
-  <span class="pin">📍</span>
+<!-- ① IAB WARNING — shown when inside Messenger/Facebook in-app browser -->
+<div class="card panel" id="p-iab">
+  <span class="icon">🌐</span>
+  <h1>Open in your browser</h1>
+  <p>This page needs to access your GPS, but the Messenger in-app browser doesn't allow it.</p>
+  <ol class="steps">
+    <li>⋯ Tap the <strong>three-dot menu</strong> (top right)</li>
+    <li>🌐 Tap <strong>"Open in browser"</strong></li>
+    <li>📍 Then tap <strong>"Share My Location"</strong></li>
+  </ol>
+  <!-- Android intent link — silently falls back to normal URL on iOS / desktop -->
+  <a id="intent-link" href="#" class="btn btn-primary">
+    Open in Chrome
+  </a>
+  <p style="margin-top:14px;margin-bottom:0;font-size:12px;color:#999">
+    Or tap ⋯ → "Open in browser" manually.
+  </p>
+  <p class="label">Barangay Dos · Daet, Camarines Norte</p>
+</div>
+
+<!-- ② IDLE — normal browser, ready to request location -->
+<div class="card panel" id="p-idle">
+  <span class="icon bounce">📍</span>
   <h1>Share Your Location</h1>
-  <p class="subtitle">Help barangay staff find the issue faster by sharing the exact location.</p>
+  <p>Help barangay staff find the issue faster by sharing the exact spot.</p>
   <button class="btn btn-primary" onclick="requestLocation()">
-    <span>📡</span> Share My Location
+    📡 &nbsp;Share My Location
   </button>
-  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+  <p class="label">Barangay Dos · Daet, Camarines Norte</p>
 </div>
 
-<!-- STATE: Loading -->
-<div class="card" id="state-loading">
+<!-- ③ LOADING -->
+<div class="card panel" id="p-loading">
   <div class="spinner"></div>
-  <p class="loading-text">Getting your location…</p>
-  <p class="subtitle" style="margin-top:8px;font-size:13px;">Please allow location access if your browser asks.</p>
+  <h1>Getting location…</h1>
+  <p>Please allow location access if your browser asks.</p>
 </div>
 
-<!-- STATE: Success -->
-<div class="card" id="state-success">
-  <span class="checkmark">✅</span>
+<!-- ④ SUCCESS -->
+<div class="card panel" id="p-success">
+  <span class="icon">✅</span>
   <h1>Location Shared!</h1>
-  <p class="subtitle">Your location has been sent to the chatbot.</p>
+  <p>Your location was sent to the chatbot.</p>
   <div class="coords-box" id="coords-display"></div>
-  <p class="subtitle" style="margin-bottom:0">Go back to Messenger to continue your report.</p>
-  <a href="https://m.me/BarangayDosChatBot" class="back-link">← Back to Messenger</a>
-  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+  <p style="margin-bottom:0">Go back to <strong>Messenger</strong> to continue your report.</p>
+  <a href="https://m.me/BarangayDosChatBot" class="btn btn-primary" style="margin-top:18px">
+    ← Back to Messenger
+  </a>
+  <p class="label">Barangay Dos · Daet, Camarines Norte</p>
 </div>
 
-<!-- STATE: Error -->
-<div class="card" id="state-error">
-  <span class="error-icon">⚠️</span>
+<!-- ⑤ ERROR -->
+<div class="card panel" id="p-error">
+  <span class="icon">⚠️</span>
   <h1>Location Unavailable</h1>
-  <p class="error-msg" id="error-text">Could not get your location.</p>
-  <button class="btn btn-retry" onclick="retry()">Try Again</button>
-  <a href="https://m.me/BarangayDosChatBot" class="back-link">← Skip & go back to Messenger</a>
-  <p class="barangay-label">BARANGAY DOS · DAET, CAMARINES NORTE</p>
+  <div class="error-msg" id="error-text"></div>
+  <button class="btn btn-primary" onclick="show('p-idle')">Try Again</button>
+  <a href="https://m.me/BarangayDosChatBot" class="btn btn-secondary">
+    ← Skip &amp; go back to Messenger
+  </a>
+  <p class="label">Barangay Dos · Daet, Camarines Norte</p>
 </div>
 
 <script>
-  // Read senderId from URL query param: /locate?sid=SENDER_ID
-  const params = new URLSearchParams(window.location.search);
-  const senderId = params.get('sid');
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-  function showState(name) {
-    ['idle','loading','success','error'].forEach(s => {
-      document.getElementById('state-' + s).style.display = s === name ? 'block' : 'none';
+function show(id) {
+  document.querySelectorAll('.panel').forEach(el => el.style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+}
+
+const params   = new URLSearchParams(window.location.search);
+const senderId = params.get('sid');
+
+// ── IAB Detection ─────────────────────────────────────────────────────────────
+// Messenger/Facebook IAB identifies itself in the User-Agent string.
+// We check for the known tokens; if found, show the "open in browser" screen.
+
+function isMessengerIAB() {
+  const ua = navigator.userAgent || '';
+  // FB / FBAN = Facebook app  |  FBAV = Facebook app version
+  // MessengerLiteFBAN = Messenger Lite
+  return /FBAN|FBAV|FB_IAB|MessengerLiteFBAN|Instagram/.test(ua);
+}
+
+// ── Android intent URL ────────────────────────────────────────────────────────
+// intent:// tells Android to open in Chrome (or the system browser).
+// On iOS / desktop this href does nothing, so the user falls back to the
+// manual "Open in browser" menu instruction.
+
+function buildIntentUrl() {
+  const pageUrl = window.location.href;
+  // Strip the protocol for the intent path
+  const path = pageUrl.replace(/^https?:\/\//, '');
+  return `intent://${path}#Intent;scheme=https;package=com.android.chrome;end`;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+(function init() {
+  if (isMessengerIAB()) {
+    // Wire up the Android intent link
+    document.getElementById('intent-link').href = buildIntentUrl();
+    show('p-iab');
+  } else {
+    show('p-idle');
+  }
+})();
+
+// ── Geolocation ──────────────────────────────────────────────────────────────
+
+function requestLocation() {
+  if (!senderId) {
+    showError('Session ID is missing. Please tap the location button in Messenger again.');
+    return;
+  }
+  if (!navigator.geolocation) {
+    showError('Your browser does not support location sharing. Please open this page in Chrome or Safari.');
+    return;
+  }
+  show('p-loading');
+  navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+    enableHighAccuracy: true,
+    timeout: 30000,
+    maximumAge: 0,
+  });
+}
+
+async function onSuccess(pos) {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  document.getElementById('coords-display').textContent =
+    lat.toFixed(6) + ', ' + lng.toFixed(6);
+
+  try {
+    const res = await fetch('/locate/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId, lat, lng }),
     });
+    if (!res.ok) throw new Error('Server responded with ' + res.status);
+    show('p-success');
+  } catch (err) {
+    showError(
+      'Your location was found but could not be sent to the server.\n\nPlease go back to Messenger and try again.\n\n(' + err.message + ')'
+    );
   }
+}
 
-  function requestLocation() {
-    if (!senderId) {
-      showError('Missing session ID. Please tap the location link from Messenger again.');
-      return;
-    }
-    if (!navigator.geolocation) {
-      showError('Your browser does not support location sharing. Please try a different browser.');
-      return;
-    }
-    showState('loading');
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0,
-    });
-  }
+function onError(err) {
+  const msg = {
+    1: 'Location permission was denied.\n\nPlease allow location access in your browser settings, then try again.',
+    2: 'Your location could not be determined.\n\nMake sure GPS / Location Services is turned on.',
+    3: 'Location request timed out.\n\nCheck your connection and try again.',
+  }[err.code] || 'An unknown error occurred. Please try again.';
+  showError(msg);
+}
 
-  async function onSuccess(pos) {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    document.getElementById('coords-display').textContent =
-      lat.toFixed(6) + ', ' + lng.toFixed(6);
-
-    try {
-      const res = await fetch('/locate/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senderId, lat, lng }),
-      });
-      if (!res.ok) throw new Error('Server error: ' + res.status);
-      showState('success');
-    } catch (err) {
-      showError('Location was found but could not be sent to the server. Please try again.\n\n(' + err.message + ')');
-    }
-  }
-
-  function onError(err) {
-    const messages = {
-      1: 'Location access was denied. Please allow location permission in your browser settings and try again.',
-      2: 'Your location could not be determined. Make sure GPS/Location is turned on.',
-      3: 'Location request timed out. Please check your connection and try again.',
-    };
-    showError(messages[err.code] || 'An unknown error occurred.');
-  }
-
-  function showError(msg) {
-    document.getElementById('error-text').textContent = msg;
-    showState('error');
-  }
-
-  function retry() {
-    showState('idle');
-  }
+function showError(msg) {
+  document.getElementById('error-text').textContent = msg;
+  show('p-error');
+}
 </script>
 </body>
 </html>
