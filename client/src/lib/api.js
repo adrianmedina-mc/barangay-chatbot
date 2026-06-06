@@ -65,4 +65,6 @@ export const api = {
   sendAnnouncement: (data) =>
     request('/announcements', { method: 'POST', body: JSON.stringify(data) }),
   approveResident: (id) => request(`/residents/${id}/approve`, { method: 'PATCH' }),
+  getNewActivity: (since) => request(`/reports/new-activity?since=${encodeURIComponent(since)}`),
+
 };

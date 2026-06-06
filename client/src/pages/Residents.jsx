@@ -23,10 +23,25 @@ export default function Residents() {
   const { dark } = useDarkMode();
 
   useEffect(() => {
-    api.getResidents()
-      .then(setResidents)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const loadResidents = async () => {
+      try {
+        const data = await api.getResidents();
+        setResidents(data);
+      } catch (err) {
+        console.error("Failed to load residents:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Load immediately
+    loadResidents();
+
+    // Then poll every 5 seconds
+    const interval = setInterval(loadResidents, 5000);
+
+    // Cleanup function to clear the interval when the component unmounts
+    return () => clearInterval(interval);
   }, []);
 
   const handleDelete = async (id, name) => {

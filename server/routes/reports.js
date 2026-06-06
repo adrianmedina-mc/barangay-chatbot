@@ -129,4 +129,31 @@ router.get('/export', async (req, res) => {
 
 });
 
+router.get('/new-activity', async (req, res) => {
+  try {
+    // 'since' should be an ISO timestamp from the client
+    const { since } = req.query;
+    if (!since) return res.status(400).json({ error: 'Missing "since" parameter' });
+
+    // Check for new reports
+    const newReports = await db.query(
+      'SELECT COUNT(*) as count FROM reports WHERE created_at > $1',
+      [since]
+    );
+
+    // Check for new residents
+    const newResidents = await db.query(
+      'SELECT COUNT(*) as count FROM residents WHERE created_at > $1',
+      [since]
+    );
+
+    res.json({
+      newReports: parseInt(newReports.rows[0].count, 10),
+      newResidents: parseInt(newResidents.rows[0].count, 10),
+    });
+  } catch (err) {
+    console.error('Error checking new activity:', err);
+    res.status(500).json({ error: 'Failed to check activity' });
+  }
+});
 module.exports = router;
